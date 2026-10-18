@@ -15,6 +15,9 @@ import { Plans } from "@/components/profile/Plans";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
+import { DisciplinePreset } from "@/components/profile/DisciplinePreset";
+import { mergeProfileSkills } from "@/lib/disciplines";
+
 type Profile = {
   display_name: string | null;
   headline: string | null;
@@ -299,6 +302,14 @@ export default function ProfilePage() {
                   required
                 />
               </label>
+              <DisciplinePreset
+                onApply={(title, added) => {
+                  setHeadline(title);
+                  setSkillsSummary((current) =>
+                    mergeProfileSkills(current, added),
+                  );
+                }}
+              />
               <label className="profile-label">
                 Специализация
                 <input

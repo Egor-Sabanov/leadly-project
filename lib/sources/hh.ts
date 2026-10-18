@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isRecord, readLimitedJson } from "../request-guards";
 import { isRussianOpportunity } from "../opportunity-language";
+import { disciplines, opportunityDisciplines } from "../disciplines";
 const HH_API = "https://api.hh.ru/vacancies";
 export function normalizeHhVacancy(value: unknown) {
   if (
@@ -91,11 +92,13 @@ export async function importHhVacancies(
   db: SupabaseClient<any, "public", "public", any, any>,
   query: string,
   token?: string,
+  options: { perPage?: number; seen?: Set<string> } = {},
 ) {
   const url = new URL(HH_API);
   url.searchParams.set("locale", "RU");
   url.searchParams.set("area", "113");
-  url.searchParams.set("per_page", "20");
+  const limit = Math.max(1, Math.min(20, Math.floor(options.perPage || 20)));
+  url.searchParams.set("per_page", String(limit));
   url.searchParams.set("order_by", "publication_time");
   url.searchParams.set("text", query.slice(0, 500));
   const response = await fetch(url, {
@@ -133,59 +136,113 @@ export async function importHhVacancies(
   if (error || !source) throw new Error("Не удалось сохранить источник hh.ru.");
   let imported = 0,
     skipped = 0;
-  for (const row of payload.items.slice(0, 20)) {
+  for (const row of payload.items.slice(0, limit)) {
     const item = normalizeHhVacancy(row);
-    if (!item) {
+    if (!item || options.seen?.has(item.externalId)) {
       skipped++;
       continue;
     }
-    const saved = await db
-      .from("opportunities")
-      .upsert(
-        {
-          source_id: source.id,
-          external_id: item.externalId,
-          canonical_key: createHash("sha256").update(item.url).digest("hex"),
-          title: item.title,
-          description: item.description || null,
-          source_url: item.url,
-          company_name: item.company,
-          category: "Digital · hh.ru",
-          type: "job",
-          location: item.location,
-          remote: item.remote,
-          budget_min: item.budgetMin,
-          budget_max: item.budgetMax,
-          currency_code: item.currency,
-          competition: "unknown",
-          published_at: item.publishedAt,
-          is_active: true,
-          raw_metadata: {
-            ingestion: "hh-api-ru-v1",
-            content_language: "ru",
-            language_filter: "ru-content-v1",
-            budget_extraction:
-              item.budgetMin !== null || item.budgetMax !== null
-                ? "api"
-                : "not_found",
-            budget_confidence:
-              item.budgetMin !== null || item.budgetMax !== null
-                ? "medium"
-                : "none",
-            budget_period: item.budgetPeriod,
-            currency_evidence: item.currencyConfirmed ? "explicit" : "unknown",
-            salary_gross: item.gross,
-            remote_evidence: "api",
-          },
-          evidence: [{ type: "source_link", url: item.url }],
+    options.seen?.add(item.externalId);
+    const saved = await db.from("opportunities").upsert(
+      {
+        source_id: source.id,
+        external_id: item.externalId,
+        canonical_key: createHash("sha256").update(item.url).digest("hex"),
+        title: item.title,
+        description: item.description || null,
+        source_url: item.url,
+        company_name: item.company,
+        category: "Digital · hh.ru",
+        type: "job",
+        location: item.location,
+        remote: item.remote,
+        budget_min: item.budgetMin,
+        budget_max: item.budgetMax,
+        currency_code: item.currency,
+        competition: "unknown",
+        published_at: item.publishedAt,
+        is_active: true,
+        raw_metadata: {
+          ingestion: "hh-api-ru-v1",
+          content_language: "ru",
+          language_filter: "ru-content-v1",
+          disciplines: opportunityDisciplines(item),
+          budget_extraction:
+            item.budgetMin !== null || item.budgetMax !== null
+              ? "api"
+              : "not_found",
+          budget_confidence:
+            item.budgetMin !== null || item.budgetMax !== null
+              ? "medium"
+              : "none",
+          budget_period: item.budgetPeriod,
+          currency_evidence: item.currencyConfirmed ? "explicit" : "unknown",
+          salary_gross: item.gross,
+          remote_evidence: "api",
         },
-        { onConflict: "canonical_key" },
-      );
-    if (saved.error)
+        evidence: [{ type: "source_link", url: item.url }],
+      },
+      { onConflict: "canonical_key" },
+    );
+    if (saved.error) {
+      options.seen?.delete(item.externalId);
       throw new Error(
         "Не удалось записать вакансии hh.ru. Проверь миграции и права.",
       );
+    }
     imported++;
   }
   return { feed: "hh.ru · русскоязычные digital-вакансии", imported, skipped };
+}
+
+/** Three concurrent requests, at most 12 searches / 60 records; custom query remains supported. */
+export async function importHhDiscovery(
+  db: Parameters<typeof importHhVacancies>[0],
+  config: { query?: string; disciplineIds?: string; token?: string } = {},
+) {
+  const ids = config.disciplineIds
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const selected = ids?.length
+    ? disciplines.filter((d) => ids.includes(d.id))
+    : disciplines;
+  if (!selected.length)
+    throw new Error(
+      "Неизвестные направления hh.ru. Проверь LEADLY_HH_DISCIPLINES.",
+    );
+  const searches = config.query?.trim()
+    ? [{ label: "Свой запрос", query: config.query.trim() }]
+    : selected.map((d) => ({ label: d.label, query: d.query }));
+  const seen = new Set<string>();
+  const results: {
+    feed: string;
+    imported: number;
+    skipped: number;
+    error?: string;
+  }[] = [];
+  for (let start = 0; start < searches.length; start += 3) {
+    results.push(
+      ...(await Promise.all(
+        searches.slice(start, start + 3).map(async (s) => {
+          try {
+            const result = await importHhVacancies(db, s.query, config.token, {
+              perPage: config.query?.trim() ? 20 : 5,
+              seen,
+            });
+            return { ...result, feed: `hh.ru · ${s.label}` };
+          } catch (error) {
+            return {
+              feed: `hh.ru · ${s.label}`,
+              imported: 0,
+              skipped: 0,
+              error:
+                error instanceof Error ? error.message : "Импорт не выполнен.",
+            };
+          }
+        }),
+      )),
+    );
+  }
+  return results;
 }

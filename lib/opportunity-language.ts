@@ -27,19 +27,23 @@ export function russianOpportunityLanguage(
       reason: "other_language_markers",
       version,
     } as const;
-  if (russian.length < 10 || words.length < 2)
+  if (
+    russian.length < 10 ||
+    (words.length < 2 &&
+      !/(?:видеомонтаж|звукорежисс[её]р|копирайтинг|иллюстратор)/u.test(text))
+  )
     return {
       language: letters.length > 12 ? "other" : "und",
       reason: "insufficient_russian_text",
       version,
     } as const;
   const signals = words.filter((word) =>
-    /^(?:нуж[её]н|нужна|нужно|нужны|ищу|ищем|требуется|требуются|необходим|сдела|созда|разработ|доработ|настро|поддержк|верст|вёрст|дизайн|интерфейс|монтаж|редактор|копирайт|специалист|опыт|срок|задач|заказ|проект|услуг|соискател|ваканси)/u.test(
+    /^(?:нуж[её]н|нужна|нужно|нужны|ищу|ищем|требуется|требуются|необходим|сдела|созда|разработ|доработ|настро|поддержк|верст|вёрст|дизайн|интерфейс|монтаж|видеомонтаж|редактор|копирайт|специалист|опыт|срок|задач|заказ|проект|услуг|соискател|ваканси|озвуч|диктор|звук|аудио|перевод|локализ|карточк|маркетплейс|аналитик|таблиц|ассистент|помощник|методист|преподавател|обучени|сценари|иллюстрац|соцсет|реклам)/u.test(
       word,
     ),
   );
   const technical =
-    /\b(?:react|next\.?js|node\.?js|typescript|javascript|figma|ui|ux|api|rest|html|css|seo|saas|mvp|crm|sql|postgresql|supabase|python|php|docker|wordpress|tilda|reels|shorts|telegram|google|web|frontend|backend|fullstack|b2b|b2c)\b/giu;
+    /\b(?:react|next\.?js|node\.?js|typescript|javascript|figma|ui|ux|api|rest|html|css|seo|saas|mvp|crm|sql|postgresql|supabase|python|php|docker|wordpress|tilda|reels|shorts|telegram|google|web|frontend|backend|fullstack|davinci|resolve|adobe|premiere|pro|after|effects|power|bi|excel|ozon|wildberries|b2b|b2c)\b/giu;
   const prose = text.replace(technical, " ");
   const proseLetters = prose.match(/\p{L}/gu) || [];
   const share = russian.length / Math.max(1, proseLetters.length);

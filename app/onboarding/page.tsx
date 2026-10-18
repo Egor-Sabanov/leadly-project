@@ -14,6 +14,9 @@ import Link from "next/link";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { LeadlyLogo } from "@/components/brand/LeadlyLogo";
 
+import { DisciplinePreset } from "@/components/profile/DisciplinePreset";
+import { mergeProfileSkills } from "@/lib/disciplines";
+
 type Profile = {
   id: string;
   display_name: string | null;
@@ -194,6 +197,12 @@ export default function OnboardingPage() {
                 required
               />
             </label>
+            <DisciplinePreset
+              onApply={(title, added) => {
+                setHeadline(title);
+                setSkills((current) => mergeProfileSkills(current, added));
+              }}
+            />
             <label>
               Чем ты занимаешься?
               <input

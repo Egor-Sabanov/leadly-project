@@ -2837,3 +2837,60 @@ option {
 .opportunity-type-filter {
   min-width: 0;
 }
+
+/* Profession controls wrap without squeezing the search field or native selects. */
+.discipline-preset {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  min-width: 0;
+  background: #151515;
+}
+.discipline-preset label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.discipline-preset select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.discipline-preset button {
+  justify-self: start;
+  white-space: normal;
+}
+.opportunity-filters {
+  flex-wrap: wrap;
+}
+.opportunity-filters .opportunity-search {
+  flex: 1 1 320px;
+}
+.opportunity-filters .direction-filter {
+  flex: 1 1 210px;
+}
+@media (max-width: 700px) {
+  .opportunity-filters .opportunity-search,
+  .opportunity-filters .direction-filter {
+    flex-basis: 100%;
+    width: 100%;
+  }
+}
+
+.source-directory .source-grid {
+  margin-top: 20px;
+}
+.direction-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.source-directory article {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}

@@ -3,16 +3,29 @@ import { getAccount } from "@/lib/workspace";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { QueryError } from "@/components/layout/QueryError";
+import {
+  marketplaceDirectory,
+  telegramDirectory,
+} from "@/lib/source-directory";
+import { disciplines } from "@/lib/disciplines";
+import { parseTelegramChannelRules } from "@/lib/telegram-channel-rules";
 export const dynamic = "force-dynamic";
 export default async function SourcesPage() {
   const account = await getAccount();
   const feeds = !!process.env.LEADLY_RSS_FEEDS?.trim();
   const fh = !!process.env.FREELANCEHUNT_API_TOKEN;
-  const telegram = !!(
-    process.env.TELEGRAM_WEBHOOK_SECRET &&
-    process.env.TELEGRAM_ALLOWED_CHAT_IDS &&
-    process.env.TELEGRAM_OPPORTUNITY_TYPE
-  );
+  let channelCount = 0;
+  let channelConfigError = false;
+  try {
+    channelCount = parseTelegramChannelRules(
+      process.env.TELEGRAM_CHANNEL_RULES,
+      process.env.TELEGRAM_ALLOWED_CHAT_IDS,
+      process.env.TELEGRAM_OPPORTUNITY_TYPE,
+    ).length;
+  } catch {
+    channelConfigError = true;
+  }
+  const telegram = !!process.env.TELEGRAM_WEBHOOK_SECRET && channelCount > 0;
   const database = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
   const sources = account
     ? await account.supabase
@@ -25,7 +38,7 @@ export default async function SourcesPage() {
       name: "hh.ru",
       icon: Radio,
       configured: process.env.LEADLY_HH_ENABLED === "true" && database,
-      text: "Официальный API: digital-вакансии России с проверкой русского языка. До 20 записей за синхронизацию; иностранные и неопределённые тексты не попадают в ленту.",
+      text: "Официальный API: digital-вакансии России с проверкой русского языка. По отдельному запросу на каждое из 12 направлений, до 60 записей за синхронизацию; иностранные и неопределённые тексты не попадают в ленту.",
       href: "https://api.hh.ru/openapi/redoc",
     },
     {
@@ -91,6 +104,83 @@ export default async function SourcesPage() {
             <span className="badge">БЕЗ НЕРАЗРЕШЁННОГО СКРЕЙПИНГА</span>
           </section>
         </div>
+        <section className="panel source-directory" style={{ marginTop: 22 }}>
+          <h2>Поиск под твою профессию</h2>
+          <p className="muted">
+            Один профиль и одна воронка для разных digital-направлений. В ленте
+            можно выбрать направление; совпадения оцениваются по твоим реальным
+            навыкам.
+          </p>
+          <div className="direction-tags">
+            {disciplines.map((d) => (
+              <span key={d.id} className="badge">
+                {d.label}
+              </span>
+            ))}
+          </div>
+        </section>
+        <section className="panel source-directory" style={{ marginTop: 22 }}>
+          <h2>Фриланс-биржи</h2>
+          <p className="muted">
+            Каталог для расширения поиска. Ссылки ведут на сами площадки;
+            автоматический сбор с перечисленных бирж пока не подключён. Для
+            импорта нужен подтверждённый официальный API или разрешённый RSS.
+          </p>
+          <div className="source-grid">
+            {marketplaceDirectory.map((s) => (
+              <article className="source-card" key={s.name}>
+                <span className="badge">АВТОСБОР НЕ ПОДКЛЮЧЁН</span>
+                <h3>{s.name}</h3>
+                <p>{s.description}</p>
+                <a
+                  className="text-link"
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Открыть биржу <ArrowUpRight size={14} />
+                </a>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section className="panel source-directory" style={{ marginTop: 22 }}>
+          <h2>Telegram: кандидаты для подключения</h2>
+          <p className="muted">
+            Подобраны каналы для первого просмотра. Их доступность, свежесть и
+            условия размещения сейчас не проверены: облачная сеть блокирует
+            Telegram. Подборка не означает разрешение на чтение ботом.
+          </p>
+          <div className="source-grid">
+            {telegramDirectory.map((s) => (
+              <article className="source-card" key={s.username}>
+                <span className="badge">КАНДИДАТ · НЕ ПРОВЕРЕН</span>
+                <h3>{s.name}</h3>
+                <p>{s.description}</p>
+                <a
+                  className="text-link"
+                  href={`https://t.me/${s.username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  @{s.username} <ArrowUpRight size={14} />
+                </a>
+              </article>
+            ))}
+          </div>
+          <p className="profile-muted">
+            Бот принимает только новые публикации из разрешённых публичных
+            каналов после предоставления доступа владельцем. Историю и
+            произвольные чужие каналы Bot API не загружает. Для каждого
+            подключённого канала задаётся тип: заказ, вакансия или клиент.
+          </p>
+          <p className="profile-muted">
+            {channelConfigError
+              ? "Проверь настройки разрешённых каналов."
+              : `Разрешённых каналов в конфигурации: ${channelCount}.`}{" "}
+            Это не подтверждает установленный webhook или успешный импорт.
+          </p>
+        </section>
         <section className="panel" style={{ marginTop: 22 }}>
           <h2>Источники в базе</h2>
           {sources?.error ? (

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {isRussianOpportunity} from "@/lib/opportunity-language";
+import { isRussianOpportunity } from "@/lib/opportunity-language";
+import { disciplines, opportunityDisciplines } from "@/lib/disciplines";
 import { safeSourceUrl } from "@/lib/links";
 import {
   Bookmark,
@@ -211,6 +212,7 @@ export function OpportunityFeed({
 }) {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
+  const [discipline, setDiscipline] = useState("all");
   const [sortMode, setSortMode] = useState<"relevance" | "match" | "newest">(
     "relevance",
   );
@@ -244,7 +246,12 @@ export function OpportunityFeed({
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("ru");
     const items = opportunities.filter((item) => {
-      if(!isRussianOpportunity(item))return false;
+      if (!isRussianOpportunity(item)) return false;
+      if (
+        discipline !== "all" &&
+        !opportunityDisciplines(item).some((id) => id === discipline)
+      )
+        return false;
       const matchesSearch =
         !query ||
         [
@@ -287,7 +294,7 @@ export function OpportunityFeed({
     });
 
     return items;
-  }, [opportunities, search, type, savedOnly, saved, sortMode]);
+  }, [opportunities, search, type, savedOnly, saved, sortMode, discipline]);
 
   async function updateStatus(item: OpportunityItem, nextStatus: string) {
     const previousStatus = statuses.get(item.id) || "new";
@@ -391,6 +398,21 @@ export function OpportunityFeed({
             placeholder="Поиск по названию, компании или описанию"
             aria-label="Поиск возможностей"
           />
+        </label>
+        <label className="opportunity-type-filter direction-filter">
+          <span className="sr-only">Направление заданий</span>
+          <select
+            aria-label="Направление заданий"
+            value={discipline}
+            onChange={(e) => setDiscipline(e.target.value)}
+          >
+            <option value="all">Все направления</option>
+            {disciplines.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.label}
+              </option>
+            ))}
+          </select>
         </label>
         <div
           className={`opportunity-type-filter custom-type-filter ${typeMenuOpen ? "is-open" : ""}`}

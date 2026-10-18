@@ -62,6 +62,51 @@ async function main() {
         await db.exec(sql);
       },
     );
+    await run(
+      "digital catalog migration is additive and repeatable",
+      async () => {
+        const catalog = fs.readFileSync(
+          path.join(
+            __dirname,
+            "../supabase/migrations/0005_expand_digital_catalog.sql",
+          ),
+          "utf8",
+        );
+        const before = (
+          await db.query("select id,name,slug from public.skills order by slug")
+        ).rows;
+        await db.exec(catalog);
+        const first = (
+          await db.query("select id,name,slug from public.skills order by slug")
+        ).rows;
+        await db.exec(catalog);
+        const second = (
+          await db.query("select id,name,slug from public.skills order by slug")
+        ).rows;
+        assert.deepEqual(first, second);
+        for (const old of before)
+          assert.deepEqual(
+            second.find((r) => r.slug === old.slug),
+            old,
+          );
+        for (const slug of [
+          "davinci-resolve",
+          "voiceover",
+          "written-translation",
+          "ozon",
+          "power-bi",
+          "course-development",
+        ])
+          assert.ok(second.some((r) => r.slug === slug));
+        assert.ok(
+          (
+            await db.query(
+              "select count(distinct category)::int as n from public.skills",
+            )
+          ).rows[0].n >= 12,
+        );
+      },
+    );
     await db.exec(
       "grant usage on schema public to authenticated,anon,service_role;grant select,insert,update,delete on all tables in schema public to authenticated,service_role;grant usage,select on all sequences in schema public to authenticated,service_role;",
     );

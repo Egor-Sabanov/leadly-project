@@ -1,4 +1,4 @@
-import { importHhVacancies } from "@/lib/sources/hh";
+import { importHhDiscovery } from "@/lib/sources/hh";
 import { isRussianOpportunity } from "@/lib/opportunity-language";
 import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
@@ -1055,12 +1055,11 @@ export async function GET(request: Request) {
   if (hhEnabled) {
     try {
       report.push(
-        await importHhVacancies(
-          supabase,
-          process.env.LEADLY_HH_QUERY ||
-            "разработчик OR дизайнер OR маркетолог OR копирайтер OR редактор OR видеомонтаж",
-          process.env.HH_API_TOKEN,
-        ),
+        ...(await importHhDiscovery(supabase, {
+          query: process.env.LEADLY_HH_QUERY,
+          disciplineIds: process.env.LEADLY_HH_DISCIPLINES,
+          token: process.env.HH_API_TOKEN,
+        })),
       );
     } catch (error) {
       report.push({

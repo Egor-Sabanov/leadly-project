@@ -9,38 +9,8 @@ import {
   type OpportunityItem,
 } from "@/components/opportunities/OpportunityFeed";
 import { scoreOpportunity } from "@/lib/opportunity-scoring";
-const specializations = [
-  {
-    label: "Дизайн",
-    headline: "UI/UX-дизайнер",
-    skills: ["Figma", "UI/UX-дизайн"],
-    services: ["Прототип и дизайн в Figma"],
-  },
-  {
-    label: "Разработка",
-    headline: "Разработка веб-приложений",
-    skills: ["React", "TypeScript", "Next.js"],
-    services: ["Создание лендинга"],
-  },
-  {
-    label: "Контент",
-    headline: "Копирайтинг и контент",
-    skills: ["Копирайтинг", "SEO"],
-    services: ["Написание текстов для сайта"],
-  },
-  {
-    label: "Маркетинг",
-    headline: "Маркетинг и продвижение",
-    skills: ["SEO", "Аналитика"],
-    services: ["SEO-аудит сайта"],
-  },
-  {
-    label: "Видео",
-    headline: "Видеомонтаж",
-    skills: ["Монтаж Reels и Shorts"],
-    services: ["Монтаж Reels и Shorts"],
-  },
-];
+import { disciplines } from "@/lib/disciplines";
+const specializations = disciplines;
 const samples = [
   {
     title: "Дизайн интерфейса сервиса для небольших команд",
@@ -87,6 +57,43 @@ const samples = [
     budget_min: 18000,
     budget_max: 30000,
   },
+  ...[
+    [
+      "SMM: ведение Telegram-канала компании",
+      "Нужен SMM-специалист: контент-план, публикации и отчёт по соцсетям. Настроить регулярную работу с аудиторией.",
+    ],
+    [
+      "Озвучка и обработка подкаста",
+      "Ищем диктора: озвучка, сведение и обработка звука. Нужен чистый звук для серии подкастов.",
+    ],
+    [
+      "Перевод и локализация текстов на русский",
+      "Нужен переводчик: подготовить перевод текстов и локализацию интерфейса. Тематика и объём обсуждаются с заказчиком.",
+    ],
+    [
+      "Оформление карточек товаров для Ozon",
+      "Ищем специалиста по маркетплейсам: создать карточки товаров, подготовить инфографику для Ozon и Wildberries.",
+    ],
+    [
+      "Аналитика продаж и дашборд в Power BI",
+      "Нужен аналитик данных: проверить таблицы Excel, подготовить SQL-запросы и собрать дашборд в Power BI.",
+    ],
+    [
+      "Удалённый бизнес-ассистент для команды",
+      "Нужен бизнес-ассистент: работа с документами, поиск информации и организация задач руководителя.",
+    ],
+    [
+      "Подготовка образовательных материалов курса",
+      "Ищем методиста онлайн-обучения: разработка курсов, учебные материалы и проверка заданий для учеников.",
+    ],
+  ].map(([title, description]) => ({
+    title,
+    description,
+    category: null,
+    type: "project",
+    budget_min: null,
+    budget_max: null,
+  })),
 ];
 export default function DemoPage() {
   const [profile, setProfile] = useState(0);
@@ -108,8 +115,8 @@ export default function DemoPage() {
         const result = scoreOpportunity(
           {
             headline: specializations[profile].headline,
-            skillNames: specializations[profile].skills,
-            serviceNames: specializations[profile].services,
+            skillNames: [...specializations[profile].skills],
+            serviceNames: [...specializations[profile].services],
             currencyCode: "RUB",
             targetMonthlyIncome: 100000,
             preferredTypes: ["project"],

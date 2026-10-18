@@ -1,0 +1,50 @@
+-- Add non-development disciplines without editing existing catalog/profile rows.
+begin;
+insert into public.skills(name,slug,category) values
+ ('Видеомонтаж','video-editing','Видео'),
+ ('DaVinci Resolve','davinci-resolve','Видео'),
+ ('Adobe Premiere Pro','adobe-premiere-pro','Видео'),
+ ('After Effects','after-effects','Видео'),
+ ('Графический дизайн','graphic-design','Дизайн'),
+ ('Adobe Photoshop','adobe-photoshop','Дизайн'),
+ ('Иллюстрация','illustration','Дизайн'),
+ ('Редактура','text-editing','Контент'),
+ ('Сценарии для видео','video-scriptwriting','Контент'),
+ ('Яндекс Директ','yandex-direct','Маркетинг'),
+ ('SMM','smm','Соцсети'),
+ ('Контент-план','content-planning','Соцсети'),
+ ('Ведение Telegram','telegram-content','Соцсети'),
+ ('Обработка звука','audio-processing','Звук'),
+ ('Озвучка','voiceover','Звук'),
+ ('Сведение','audio-mixing','Звук'),
+ ('Письменный перевод','written-translation','Переводы'),
+ ('Локализация','localization','Переводы'),
+ ('Карточки товаров','product-cards','Маркетплейсы'),
+ ('Ozon','ozon','Маркетплейсы'),
+ ('Wildberries','wildberries','Маркетплейсы'),
+ ('Excel','excel','Аналитика'),
+ ('SQL','sql','Аналитика'),
+ ('Power BI','power-bi','Аналитика'),
+ ('Работа с документами','document-management','Ассистирование'),
+ ('Поиск информации','information-research','Ассистирование'),
+ ('Организация задач','task-organization','Ассистирование'),
+ ('Разработка курсов','course-development','Обучение'),
+ ('Учебные материалы','learning-materials','Обучение')
+on conflict(slug) do nothing;
+insert into public.services(name,slug,category) values
+ ('Монтаж видеороликов','video-editing-service','Видео'),
+ ('Моушн-дизайн','motion-design-service','Видео'),
+ ('Дизайн фирменного стиля','brand-design-service','Дизайн'),
+ ('Иллюстрация и графика','illustration-service','Дизайн'),
+ ('Редактура и корректура','text-editing-service','Контент'),
+ ('Сценарии для видео','video-scriptwriting-service','Контент'),
+ ('Настройка рекламы','ads-setup-service','Маркетинг'),
+ ('Ведение социальных сетей','social-media-service','Соцсети'),
+ ('Озвучка и обработка аудио','voiceover-service','Звук'),
+ ('Перевод и локализация текстов','translation-service','Переводы'),
+ ('Оформление карточек товаров','product-cards-service','Маркетплейсы'),
+ ('Анализ данных и дашборды','data-analysis-service','Аналитика'),
+ ('Удалённое административное сопровождение','remote-assistant-service','Ассистирование'),
+ ('Подготовка образовательных материалов','learning-materials-service','Обучение')
+on conflict(slug) do nothing;
+commit;

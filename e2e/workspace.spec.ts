@@ -10,7 +10,7 @@ test("demo personalizes scores, saves, filters and changes status without a data
   await expect(
     page.getByText("Демонстрационное пространство.", { exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".opportunity-feed-card")).toHaveCount(5);
+  await expect(page.locator(".opportunity-feed-card")).toHaveCount(12);
   await page.getByRole("button", { name: "Разработка", exact: true }).click();
   await expect(
     page.locator(".opportunity-feed-card").first().locator("h3"),
@@ -215,5 +215,47 @@ test("social providers are visible and unavailable ones fail closed without cred
   await page.goto("/auth?error=provider");
   await expect(page.locator(".auth-message[role=alert]")).toContainText(
     "Этот способ входа пока недоступен",
+  );
+});
+
+test("profession filter finds video, sound, translations and assistance without development", async ({
+  page,
+}) => {
+  await page.goto("/demo");
+  const select = page.getByRole("combobox", { name: "Направление заданий" });
+  for (const [id, title] of [
+    ["video", "Монтаж Reels"],
+    ["audio", "Озвучка"],
+    ["translation", "Перевод"],
+    ["marketplaces", "Ozon"],
+    ["analytics", "Power BI"],
+    ["assistance", "бизнес-ассистент"],
+    ["education", "образовательных"],
+  ]) {
+    await select.selectOption(id);
+    await expect(
+      page
+        .locator(".opportunity-feed-card")
+        .filter({ has: page.locator("h3", { hasText: title }) }),
+    ).toHaveCount(1);
+    expect(
+      await page.locator(".opportunity-feed-card").count(),
+    ).toBeGreaterThanOrEqual(1);
+  }
+  await select.selectOption("all");
+  await expect(page.locator(".opportunity-feed-card")).toHaveCount(12);
+  await page.goto("/sources");
+  await expect(
+    page.getByRole("heading", { name: "Kwork", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Telegram: кандидаты для подключения",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "@finder_vc" })).toHaveAttribute(
+    "href",
+    "https://t.me/finder_vc",
   );
 });

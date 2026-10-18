@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { readLimitedJson } from "@/lib/request-guards";
 import { normalizeTelegramPost } from "@/lib/telegram-source";
+import { parseTelegramChannelRules } from "@/lib/telegram-channel-rules";
+import { opportunityDisciplines } from "@/lib/disciplines";
 export async function POST(request: Request) {
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
   const actual = request.headers.get("x-telegram-bot-api-secret-token") || "";
@@ -14,12 +16,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
     key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (
-    !url ||
-    !key ||
-    !process.env.TELEGRAM_ALLOWED_CHAT_IDS ||
-    !process.env.TELEGRAM_OPPORTUNITY_TYPE
-  )
+  let rules;
+  try {
+    rules = parseTelegramChannelRules(
+      process.env.TELEGRAM_CHANNEL_RULES,
+      process.env.TELEGRAM_ALLOWED_CHAT_IDS,
+      process.env.TELEGRAM_OPPORTUNITY_TYPE,
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid channel configuration" },
+      { status: 503 },
+    );
+  }
+  if (!url || !key || !rules.length)
     return NextResponse.json(
       { error: "Connector not configured" },
       { status: 503 },
@@ -33,11 +43,10 @@ export async function POST(request: Request) {
       { status: e instanceof RangeError ? 413 : 400 },
     );
   }
-  const post = normalizeTelegramPost(
-    input,
-    process.env.TELEGRAM_ALLOWED_CHAT_IDS.split(",").map((v) => v.trim()),
-    process.env.TELEGRAM_OPPORTUNITY_TYPE,
-  );
+  // The normalizer checks shape and allowed IDs before returning a post.
+  const post = rules
+    .map((rule) => normalizeTelegramPost(input, [rule.chatId], rule.type))
+    .find(Boolean);
   if (!post) return NextResponse.json({ ok: true, ignored: true });
   const db = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -77,6 +86,7 @@ export async function POST(request: Request) {
         ingestion: "telegram-authorized-ru-v2",
         content_language: "ru",
         language_filter: "ru-content-v1",
+        disciplines: opportunityDisciplines(post),
         remote_evidence: "unknown",
         currency_evidence: "defaulted_rub",
         budget_extraction: "not_found",
