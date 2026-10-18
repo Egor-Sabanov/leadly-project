@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   typedRoutes: true,
   agentRules: false,
+  devIndicators: false,
   async headers() {
     return [
       {

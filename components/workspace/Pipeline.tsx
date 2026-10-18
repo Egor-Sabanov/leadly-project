@@ -101,7 +101,7 @@ export function Pipeline({ items }: { items: PipelineItem[] }) {
                   {i.notes && (
                     <p
                       className="muted"
-                      style={{ fontSize: 11, whiteSpace: "pre-wrap" }}
+                      style={{ fontSize: 14, whiteSpace: "pre-wrap" }}
                     >
                       {i.notes.slice(0, 150)}
                     </p>

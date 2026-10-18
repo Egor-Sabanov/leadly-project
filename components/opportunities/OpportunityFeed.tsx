@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {isRussianOpportunity} from "@/lib/opportunity-language";
 import { safeSourceUrl } from "@/lib/links";
 import {
   Bookmark,
@@ -243,6 +244,7 @@ export function OpportunityFeed({
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("ru");
     const items = opportunities.filter((item) => {
+      if(!isRussianOpportunity(item))return false;
       const matchesSearch =
         !query ||
         [
@@ -476,7 +478,7 @@ export function OpportunityFeed({
               background: "transparent",
               color: "var(--text)",
               font: "inherit",
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: 700,
             }}
           >

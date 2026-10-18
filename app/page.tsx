@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { loadRussianOpportunities } from "@/lib/russian-opportunities";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -35,11 +36,7 @@ export default async function Home() {
       .from("user_opportunities")
       .select("status,is_saved")
       .eq("user_id", user.id),
-    supabase
-      .from("opportunities")
-      .select("id", { count: "exact", head: true })
-      .eq("is_active", true)
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`),
+    loadRussianOpportunities(supabase),
     supabase
       .from("opportunity_status_history")
       .select("id,to_status,changed_at,opportunity_id,opportunities(title)")
@@ -120,9 +117,9 @@ export default async function Home() {
         <div className="stats">
           {[
             {
-              label: "Активных возможностей",
-              value: offers.count ?? "—",
-              note: "Из подключённых источников",
+              label: "Русскоязычных возможностей",
+              value: offers.error ? "—" : offers.data.length,
+              note: "В текущей выборке · до 100",
               icon: Search,
             },
             {
@@ -241,7 +238,7 @@ export default async function Home() {
             >
               <i style={{ width: `${progress}%` }} />
             </div>
-            <p className="muted" style={{ fontSize: 11, marginTop: 12 }}>
+            <p className="muted" style={{ fontSize: 14, marginTop: 12 }}>
               Учтено доходов: {formatMoney(income, p?.currency_code || "RUB")}.
               Записи добавляются в разделе финансов.
             </p>

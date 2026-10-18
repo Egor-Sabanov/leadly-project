@@ -22,6 +22,13 @@ export default async function SourcesPage() {
     : null;
   const cards = [
     {
+      name: "hh.ru",
+      icon: Radio,
+      configured: process.env.LEADLY_HH_ENABLED === "true" && database,
+      text: "Официальный API: digital-вакансии России с проверкой русского языка. До 20 записей за синхронизацию; иностранные и неопределённые тексты не попадают в ленту.",
+      href: "https://api.hh.ru/openapi/redoc",
+    },
+    {
       name: "RSS / Atom",
       icon: Rss,
       configured: feeds && database,
@@ -32,7 +39,7 @@ export default async function SourcesPage() {
       name: "Freelancehunt",
       icon: Radio,
       configured: fh && database,
-      text: "Официальный API проектов. Нормализация бюджета, проверка срока и идемпотентный импорт. Для подключения нужен токен владельца источника.",
+      text: "Официальный API проектов с фильтром русского языка. Нормализация бюджета, проверка срока и идемпотентный импорт. Для подключения нужен токен владельца источника.",
       href: "https://apidocs.freelancehunt.com/",
     },
     {
@@ -50,7 +57,7 @@ export default async function SourcesPage() {
         <PageHeader
           eyebrow="ПРОЗРАЧНОЕ ПРОИСХОЖДЕНИЕ"
           title="Источники"
-          description="У каждой возможности должен быть оригинал. Подключаем разрешённые API и ленты."
+          description="Только русскоязычные задания. Официальные API, RSS и разрешённые Telegram-каналы."
         />
         <div className="source-grid">
           {cards.map(({ name, icon: Icon, configured, text, href }) => (

@@ -1,3 +1,4 @@
+import { loadRussianOpportunities } from "@/lib/russian-opportunities";
 import { Search, Sparkles } from "lucide-react";
 import { getAccount } from "@/lib/workspace";
 import { SetupScreen } from "@/components/layout/SetupScreen";
@@ -32,16 +33,7 @@ export default async function OpportunitiesPage() {
     { data: userSkills, error: userSkillsError },
     { data: userServices, error: userServicesError },
   ] = await Promise.all([
-    supabase
-      .from("opportunities")
-      .select(
-        "id,title,company_name,description,source_url,category,location,remote,budget_min,budget_max,currency_code,competition,published_at,discovered_at,type,raw_metadata",
-      )
-      .eq("is_active", true)
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-      .order("published_at", { ascending: false, nullsFirst: false })
-      .order("discovered_at", { ascending: false })
-      .limit(100),
+    loadRussianOpportunities(supabase),
     supabase
       .from("user_opportunities")
       .select("opportunity_id,status,is_saved")
@@ -173,7 +165,7 @@ export default async function OpportunitiesPage() {
           <div>
             <div className="eyebrow">ТВОЙ РАДАР</div>
             <h1>Возможности</h1>
-            <p>Подходящие задачи начинаются с правильного фокуса.</p>
+            <p>Русскоязычные задания и вакансии под твои навыки.</p>
           </div>
         </header>
 
@@ -182,7 +174,7 @@ export default async function OpportunitiesPage() {
             <Search size={20} />
           </span>
           <div>
-            <h2>Твой радар возможностей</h2>
+            <h2>Твой радар · только на русском</h2>
             <p>
               Сохраняй интересные предложения и отслеживай их статус. Оценка
               совпадения учитывает навыки и услуги из профиля, тип и свежесть

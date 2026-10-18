@@ -74,7 +74,9 @@ export async function POST(request: Request) {
       budget_max: null,
       published_at: post.publishedAt,
       raw_metadata: {
-        ingestion: "telegram-authorized-v1",
+        ingestion: "telegram-authorized-ru-v2",
+        content_language: "ru",
+        language_filter: "ru-content-v1",
         remote_evidence: "unknown",
         currency_evidence: "defaulted_rub",
         budget_extraction: "not_found",

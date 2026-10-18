@@ -1,6 +1,6 @@
 /** Read untrusted JSON with a hard byte limit, including chunked requests. */
 export async function readLimitedJson(
-  request: Request,
+  request: Pick<Request, "headers" | "body">,
   maxBytes = 16000,
 ): Promise<unknown> {
   if (Number(request.headers.get("content-length")) > maxBytes)

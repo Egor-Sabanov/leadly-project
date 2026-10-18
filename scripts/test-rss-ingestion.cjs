@@ -6,6 +6,8 @@ const dns = require('node:dns/promises');
 const vm = require('node:vm');
 const ts = require('typescript');
 
+const loadTs=require('./ts-loader.cjs').createTsLoader();
+const {isRussianOpportunity}=loadTs(require('node:path').join(__dirname,'../lib/opportunity-language.ts'));
 const routePath = require('node:path').join(__dirname, '..', 'app', 'api', 'cron', 'ingest', 'route.ts');
 const source = fs.readFileSync(routePath, 'utf8');
 const start = source.indexOf('type FeedItem =');
@@ -16,6 +18,7 @@ const compiled = ts.transpileModule(helperSource, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText;
 const sandbox = {
+  isRussianOpportunity,
   createHash: crypto.createHash,
   isIP: net.isIP,
   lookup: dns.lookup,
@@ -31,6 +34,7 @@ const { extractBudget, isPublicIp, parseFeedUrl, decodeXml, parseFeed, canonical
 
 const endpointSandbox = {
   require: (id) => {
+    if(id.startsWith('@/'))return loadTs(require('node:path').join(__dirname,'..',id.slice(2)+'.ts'));
     if (id === 'node:crypto') return crypto;
     if (id === 'node:dns/promises') return dns;
     if (id === 'node:net') return net;
@@ -101,7 +105,7 @@ const tests = [
   ['skips expired or closed Freelancehunt projects', () => { const base = { externalId: '1', title: 'Example', description: '', url: 'https://freelancehunt.com/project/example/1.html', publishedAt: null, expiresAt: '2020-01-01T00:00:00Z', budgetAmount: null, currencyCode: null, skillNames: [], location: null, remote: true, remoteEvidence: 'inferred_no_location', status: 'Open for proposals' }; assert.equal(shouldSkipFreelancehuntProject(base, Date.parse('2026-10-17T00:00:00Z')), true); assert.equal(shouldSkipFreelancehuntProject({ ...base, expiresAt: null, status: 'Closed' }), true); assert.equal(shouldSkipFreelancehuntProject({ ...base, expiresAt: null, status: 'Open for proposals' }), false); }],
   ['Freelancehunt fixed price budget is absent unless amount and currency are valid', () => { const p = normalizeFreelancehuntProject({ id: 125, attributes: { name: 'Fix site', budget: { amount: 5000, currency: '???' } }, links: { self: { web: 'https://freelancehunt.com/project/fix-site/125.html' } } }); assert.ok(p); assert.equal(p.budgetAmount, null); assert.equal(p.currencyCode, null); }],
   ['Freelancehunt import maps API project and writes idempotent normalized opportunity data', async () => {
-    const apiRecord = { id: 987, attributes: { name: 'Build a web app', description_html: '<p>React and Next.js</p>', budget: { amount: 8000, currency: 'RUB' }, published_at: '2026-10-16T10:00:00Z', expired_at: '2099-10-16T10:00:00Z', skills: [{ name: 'React' }], is_remote_job: true, status: { name: 'Open for proposals' } }, links: { self: { web: 'https://freelancehunt.com/project/build-web-app/987.html' } } };
+    const apiRecord = { id: 987, attributes: { name: 'Разработать веб-приложение на React', description_html: '<p>Нужно создать веб-приложение на React и Next.js. Требуется адаптивная вёрстка и интеграция API.</p>', budget: { amount: 8000, currency: 'RUB' }, published_at: '2026-10-16T10:00:00Z', expired_at: '2099-10-16T10:00:00Z', skills: [{ name: 'React' }], is_remote_job: true, status: { name: 'Open for proposals' } }, links: { self: { web: 'https://freelancehunt.com/project/build-web-app/987.html' } } };
     const sourceUpsert = { select: () => ({ single: async () => ({ data: { id: 'source-id' }, error: null }) }) };
     const written = [];
     const fakeSupabase = { from: (table) => ({ upsert: (row, options) => { if (table === 'opportunity_sources') return sourceUpsert; written.push({ table, row, options }); return Promise.resolve({ error: null }); } }) };

@@ -92,7 +92,7 @@ export function Plans({ userId }: { userId: string }) {
               {p.id === "free" ? "ДОСТУПЕН СЕЙЧАС" : "ПРЕДВАРИТЕЛЬНЫЙ ДОСТУП"}
             </span>
             <h3>{p.name}</h3>
-            <p style={{ fontSize: 11, opacity: 0.7 }}>{p.caption}</p>
+            <p style={{ fontSize: 14, opacity: 0.7 }}>{p.caption}</p>
             <div className="plan-price">
               {p.price} ₽<small> / мес.</small>
             </div>

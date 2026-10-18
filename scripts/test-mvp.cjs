@@ -139,7 +139,7 @@ const tests = [
     () =>
       assert.equal(
         normalizeTelegramPost(
-          { channel_post: { ...post.channel_post, text: "x".repeat(10000) } },
+          { channel_post: { ...post.channel_post, text: "Нужен дизайнер интерфейсов. ".repeat(1000) } },
           ["-100123"],
           "job",
         ).description.length,

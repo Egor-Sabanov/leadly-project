@@ -78,7 +78,7 @@ export default async function AnalyticsPage() {
             <div className="two-col">
               <section className="panel">
                 <h2>Активность за 7 дней</h2>
-                <p className="muted" style={{ fontSize: 12 }}>
+                <p className="muted" style={{ fontSize: 14 }}>
                   Количество изменений статуса · дни по UTC
                 </p>
                 <div

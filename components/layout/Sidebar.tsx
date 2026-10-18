@@ -1,17 +1,38 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowUpRight, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { LeadlyLogo } from "@/components/brand/LeadlyLogo";
 import { mainNavigation, settingsNavigation } from "@/lib/navigation";
 export function Sidebar({ activeHref = "/" }: { activeHref?: string }) {
   const [open, setOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const trigger = menuButton.current;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document
+      .getElementById("app-navigation")
+      ?.querySelector<HTMLAnchorElement>("a")
+      ?.focus();
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", escape);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", escape);
+      trigger?.focus();
+    };
+  }, [open]);
   return (
     <>
       <header className="mobile-header">
         <LeadlyLogo />
         <button
+          ref={menuButton}
           className="icon-btn"
           aria-label={open ? "Закрыть меню" : "Открыть меню"}
           aria-expanded={open}
@@ -71,19 +92,8 @@ export function Sidebar({ activeHref = "/" }: { activeHref?: string }) {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <span className="badge">МЕНЬШЕ ШУМА. БОЛЬШЕ ДЕЙСТВИЙ.</span>
-            <p>
-              Твоя следующая
-              <br />
-              возможность — ближе.
-            </p>
-            <Link href="/opportunities">
-              Найти своё <ArrowUpRight size={16} />
-            </Link>
-          </div>
           <div className="sidebar-signature">
-            LEADLY <span>Сделай следующий шаг ↗</span>
+            LEADLY <span>Твоё рабочее пространство</span>
           </div>
         </div>
       </aside>

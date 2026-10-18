@@ -1,3 +1,5 @@
+import { importHhVacancies } from "@/lib/sources/hh";
+import { isRussianOpportunity } from "@/lib/opportunity-language";
 import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
@@ -692,7 +694,7 @@ async function fetchFreelancehuntProjectPage(
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
-      "Accept-Language": "en",
+      "Accept-Language": "ru",
       "User-Agent": "LEADLY Opportunity Aggregator/1.0",
     },
     signal: AbortSignal.timeout(12000),
@@ -785,13 +787,19 @@ async function importFreelancehuntProjects(
       if (processed >= MAX_FREELANCEHUNT_PROJECTS_PER_SYNC) break;
       processed += 1;
       const project = normalizeFreelancehuntProject(record);
-      if (!project || shouldSkipFreelancehuntProject(project)) {
+      if (
+        !project ||
+        shouldSkipFreelancehuntProject(project) ||
+        !isRussianOpportunity(project)
+      ) {
         skipped += 1;
         continue;
       }
       const budgetAmount = project.budgetAmount;
       const rawMetadata = {
-        ingestion: "freelancehunt-api-v1",
+        ingestion: "freelancehunt-api-ru-v2",
+        content_language: "ru",
+        language_filter: "ru-content-v1",
         external_project_id: project.externalId,
         skills: project.skillNames,
         source_status: project.status,
@@ -834,7 +842,10 @@ async function importFreelancehuntProjects(
         },
         { onConflict: "canonical_key", ignoreDuplicates: false },
       );
-      if (error) skipped += 1;
+      if (error)
+        throw new Error(
+          "Не удалось записать проект Freelancehunt. Проверь схему и права базы.",
+        );
       else imported += 1;
     }
     pageUrl = page.next;
@@ -881,8 +892,9 @@ export async function GET(request: Request) {
     .map((v) => v.trim())
     .filter(Boolean)
     .slice(0, MAX_FEEDS);
+  const hhEnabled = process.env.LEADLY_HH_ENABLED === "true";
   const freelancehuntToken = process.env.FREELANCEHUNT_API_TOKEN?.trim() || "";
-  if (!feeds.length && !freelancehuntToken) {
+  if (!feeds.length && !freelancehuntToken && !hhEnabled) {
     return NextResponse.json(
       {
         error:
@@ -948,6 +960,10 @@ export async function GET(request: Request) {
         );
 
       for (const item of items) {
+        if (!isRussianOpportunity(item)) {
+          skipped++;
+          continue;
+        }
         const budget = extractBudget(`${item.title} ${item.description}`);
         const { error } = await supabase.from("opportunities").upsert(
           {
@@ -987,7 +1003,9 @@ export async function GET(request: Request) {
               remote_evidence: "source_or_text_inference",
               feed_url: feedUrl,
               guid: item.guid,
-              ingestion: "rss-v3-source-aware",
+              ingestion: "rss-ru-v4",
+              content_language: "ru",
+              language_filter: "ru-content-v1",
               budget_extraction:
                 budget.confidence === "none" ? "not_found" : "heuristic",
               budget_confidence: budget.confidence,
@@ -1034,12 +1052,32 @@ export async function GET(request: Request) {
     }
   }
 
+  if (hhEnabled) {
+    try {
+      report.push(
+        await importHhVacancies(
+          supabase,
+          process.env.LEADLY_HH_QUERY ||
+            "разработчик OR дизайнер OR маркетолог OR копирайтер OR редактор OR видеомонтаж",
+          process.env.HH_API_TOKEN,
+        ),
+      );
+    } catch (error) {
+      report.push({
+        feed: "hh.ru",
+        imported: 0,
+        skipped: 0,
+        error:
+          error instanceof Error ? error.message : "Импорт hh.ru не выполнен.",
+      });
+    }
+  }
   return NextResponse.json({
     ok: report.every((row) => !row.error),
     feedsProcessed: report.length,
     imported: report.reduce((sum, row) => sum + row.imported, 0),
     skipped: report.reduce((sum, row) => sum + row.skipped, 0),
     results: report,
-    note: "RSS/Atom и доступные API-источники обработаны. Эвристические бюджеты из RSS не подтверждены; бюджет из Freelancehunt берётся из структурированного API. Проверяй условия и актуальность перед откликом.",
+    note: "Обработаны русскоязычные записи RSS/Atom и API. Иностранные и записи с неопределённым языком пропущены. Эвристические бюджеты из RSS не подтверждены; бюджет из Freelancehunt берётся из структурированного API. Проверяй условия и актуальность перед откликом.",
   });
 }

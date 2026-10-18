@@ -138,7 +138,13 @@ export default function ProfilePage() {
         const p = profile as Profile | null;
         const prefs = preferences as Preferences | null;
         setName(
-          p?.display_name || String(user.user_metadata?.display_name || ""),
+          p?.display_name ||
+            String(
+              user.user_metadata?.display_name ||
+                user.user_metadata?.full_name ||
+                user.user_metadata?.name ||
+                "",
+            ),
         );
         const legacyProfileText = p?.headline || "";
         const legacyParts = splitLegacyProfileText(legacyProfileText);

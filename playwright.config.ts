@@ -48,6 +48,10 @@ export default defineConfig({
       TELEGRAM_ALLOWED_CHAT_IDS: "",
       LEADLY_RSS_FEEDS: "",
       FREELANCEHUNT_API_TOKEN: "",
+      HH_API_TOKEN: "",
+      LEADLY_HH_ENABLED: "false",
+      LEADLY_VK_AUTH_PROVIDER: "",
+      LEADLY_YANDEX_AUTH_PROVIDER: "",
     },
   },
 });

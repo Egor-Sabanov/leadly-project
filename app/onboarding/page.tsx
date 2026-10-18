@@ -71,7 +71,13 @@ export default function OnboardingPage() {
         if (!active) return;
         setUserId(user.id);
         setName(
-          data?.display_name || String(user.user_metadata?.display_name || ""),
+          data?.display_name ||
+            String(
+              user.user_metadata?.display_name ||
+                user.user_metadata?.full_name ||
+                user.user_metadata?.name ||
+                "",
+            ),
         );
         setHeadline(data?.headline || "");
         setIncome(

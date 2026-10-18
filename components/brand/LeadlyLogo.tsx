@@ -23,11 +23,22 @@ export function LeadlyLogo({
       {!compact && (
         <span className="leadly-logo-copy">
           <span className="leadly-logo-word">
-            LEADLY<span className="logo-period"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M2 10 10 2M2 2h8v8"/></svg></span>
+            LEADLY
+            <span className="logo-period">
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 12 12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+              >
+                <path d="M2 10 10 2M2 2h8v8" />
+              </svg>
+            </span>
           </span>
-          <span className="leadly-logo-tagline">
-            Возможности становятся делом
-          </span>
+          <span className="leadly-logo-tagline">Твоё рабочее пространство</span>
         </span>
       )}
     </Link>

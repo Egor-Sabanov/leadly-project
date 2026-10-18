@@ -141,3 +141,79 @@ test("API rejects unauthorized connectors and cross-origin AI, callback is not a
     "http://127.0.0.1:3100/auth?error=callback",
   );
 });
+
+test("dark theme, Russian font and sidebar remain readable on narrow and short screens", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1440, height: 640 },
+    { width: 1024, height: 600 },
+    { width: 390, height: 844 },
+    { width: 320, height: 568 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/demo");
+    await page.locator(".opportunity-feed-card").first().waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    const style = await page.evaluate(() => ({
+      font: getComputedStyle(document.body).fontFamily,
+      size: parseFloat(getComputedStyle(document.body).fontSize),
+      background: getComputedStyle(document.body).backgroundColor,
+      loaded: Array.from(document.fonts).some(
+        (f) => f.family.includes("Golos") && f.status === "loaded",
+      ),
+      overflow: document.documentElement.scrollWidth > innerWidth,
+    }));
+    expect(style.font).toContain("Golos");
+    expect(style.loaded).toBe(true);
+    expect(style.size).toBeGreaterThanOrEqual(16);
+    expect(style.background).toBe("rgb(16, 16, 16)");
+    expect(style.overflow).toBe(false);
+    expect(
+      parseFloat(
+        await page
+          .locator(".opportunity-description")
+          .first()
+          .evaluate((el) => getComputedStyle(el).fontSize),
+      ),
+    ).toBeGreaterThanOrEqual(16);
+    if (viewport.width <= 700) {
+      await page.getByRole("button", { name: "Открыть меню" }).click();
+      await expect(
+        page.getByRole("link", { name: "Настройки", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByRole("button", { name: "Открыть меню" }),
+      ).toBeFocused();
+    }
+  }
+});
+
+test("social providers are visible and unavailable ones fail closed without credentials", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/auth");
+  for (const name of ["Google", "GitHub", "VK ID", "Яндекс ID"])
+    await expect(
+      page.getByRole("button", { name: new RegExp(name) }),
+    ).toBeDisabled();
+  const response = await request.get("/auth/social/google", {
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBe(307);
+  expect(response.headers().location).toBe(
+    "http://127.0.0.1:3100/auth?error=provider",
+  );
+  const invalid = await request.get("/auth/social/unknown", {
+    maxRedirects: 0,
+  });
+  expect(invalid.headers().location).toBe(
+    "http://127.0.0.1:3100/auth?error=provider",
+  );
+  await page.goto("/auth?error=provider");
+  await expect(page.locator(".auth-message[role=alert]")).toContainText(
+    "Этот способ входа пока недоступен",
+  );
+});

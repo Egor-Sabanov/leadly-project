@@ -101,7 +101,7 @@ export default async function OpportunityDetail({
                       o.description || "Подробности доступны у источника.",
                     ).replace(/<[^>]*>/g, " ")}
                   </div>
-                  <p className="muted" style={{ fontSize: 11, marginTop: 20 }}>
+                  <p className="muted" style={{ fontSize: 14, marginTop: 20 }}>
                     Описание предоставлено источником. Условия, бюджет и
                     доступность предложения нужно уточнять перед откликом.
                   </p>
@@ -174,7 +174,7 @@ export default async function OpportunityDetail({
                     ? `От ${formatMoney(Number(o.budget_min), o.currency_code)}`
                     : "Бюджет не указан"}
                 </div>
-                <p className="muted" style={{ fontSize: 11 }}>
+                <p className="muted" style={{ fontSize: 14 }}>
                   Сумма из источника. Автоматически извлечённый бюджет требует
                   подтверждения.
                 </p>

@@ -1,3 +1,4 @@
+import { isRussianOpportunity } from "@/lib/opportunity-language";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
   if (
     !offer.data ||
     !offer.data.is_active ||
+    !isRussianOpportunity(offer.data) ||
     (offer.data.expires_at && Date.parse(offer.data.expires_at) < Date.now())
   )
     return NextResponse.json(
@@ -163,17 +165,15 @@ export async function POST(request: Request) {
         { error: "AI вернул пустой ответ. Попробуй шаблон." },
         { status: 502 },
       );
-    await admin
-      .from("ai_usage")
-      .insert({
-        user_id: user.id,
-        operation: "outreach",
-        provider: "openai",
-        model,
-        input_tokens: result.usage?.input_tokens || 0,
-        output_tokens: result.usage?.output_tokens || 0,
-        request_id: result.id || null,
-      });
+    await admin.from("ai_usage").insert({
+      user_id: user.id,
+      operation: "outreach",
+      provider: "openai",
+      model,
+      input_tokens: result.usage?.input_tokens || 0,
+      output_tokens: result.usage?.output_tokens || 0,
+      request_id: result.id || null,
+    });
     return NextResponse.json({ content: text.slice(0, 10000), model });
   } catch {
     return NextResponse.json(

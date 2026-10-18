@@ -1,3 +1,4 @@
+import { isRussianOpportunity } from "./opportunity-language";
 import { isRecord } from "./request-guards";
 /** Only public, explicitly authorized channel posts have a shareable source URL. */
 export function normalizeTelegramPost(
@@ -30,7 +31,14 @@ export function normalizeTelegramPost(
       : typeof post.caption === "string"
         ? post.caption
         : "";
-  if (!content.trim() || !["project", "job", "client"].includes(kind))
+  if (
+    !content.trim() ||
+    !isRussianOpportunity({
+      title: content.split("\n")[0],
+      description: content,
+    }) ||
+    !["project", "job", "client"].includes(kind)
+  )
     return null;
   const published = new Date(post.date * 1000);
   if (!Number.isFinite(published.getTime())) return null;

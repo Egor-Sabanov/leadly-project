@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { loadRussianOpportunities } from "@/lib/russian-opportunities";
 import { safeSourceUrl } from "@/lib/links";
 import {
   ArrowLeft,
@@ -122,15 +123,7 @@ export default function AiOutreachPage() {
     }
     setUserId(user.id);
     const [opp, prof, skillRows, serviceRows, generated] = await Promise.all([
-      supabase
-        .from("opportunities")
-        .select(
-          "id,title,company_name,description,source_url,budget_min,budget_max,currency_code",
-        )
-        .eq("is_active", true)
-        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-        .order("discovered_at", { ascending: false })
-        .limit(100),
+      loadRussianOpportunities(supabase),
       supabase
         .from("profiles")
         .select("display_name,headline,bio,target_monthly_income")

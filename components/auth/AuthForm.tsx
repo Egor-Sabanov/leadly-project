@@ -11,14 +11,20 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { SocialAuth } from "./SocialAuth";
+import { socialAuthCatalog, type SocialAuthOption } from "@/lib/auth-providers";
 import { LeadlyLogo } from "@/components/brand/LeadlyLogo";
 
 type Mode = "signin" | "signup" | "recovery";
 
 export function AuthForm({
   callbackFailed = false,
+  socialOptions = socialAuthCatalog(),
+  socialError,
 }: {
   callbackFailed?: boolean;
+  socialOptions?: SocialAuthOption[];
+  socialError?: string;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signup");
@@ -29,9 +35,10 @@ export function AuthForm({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(
-    callbackFailed
-      ? "Ссылка подтверждения недействительна или устарела. Попробуй войти либо запроси новое письмо восстановления."
-      : "",
+    socialError ||
+      (callbackFailed
+        ? "Не удалось завершить вход: ссылка устарела или проверка сессии не прошла. Повтори вход либо запроси новое письмо."
+        : ""),
   );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -119,6 +126,7 @@ export function AuthForm({
               ? "Укажи email аккаунта — пришлём ссылку для смены пароля."
               : "Войди, чтобы продолжить работу с возможностями."}
         </p>
+        {mode !== "recovery" && <SocialAuth options={socialOptions} />}
         <div className="auth-tabs" role="tablist" aria-label="Тип авторизации">
           <button
             type="button"
