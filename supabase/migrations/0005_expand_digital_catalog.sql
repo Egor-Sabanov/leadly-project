@@ -1,6 +1,7 @@
 -- Add non-development disciplines without editing existing catalog/profile rows.
 begin;
-insert into public.skills(name,slug,category) values
+insert into public.skills(name,slug,category)
+select seed.name,seed.slug,seed.category from (values
  ('Видеомонтаж','video-editing','Видео'),
  ('DaVinci Resolve','davinci-resolve','Видео'),
  ('Adobe Premiere Pro','adobe-premiere-pro','Видео'),
@@ -30,8 +31,11 @@ insert into public.skills(name,slug,category) values
  ('Организация задач','task-organization','Ассистирование'),
  ('Разработка курсов','course-development','Обучение'),
  ('Учебные материалы','learning-materials','Обучение')
+) as seed(name,slug,category)
+where not exists (select 1 from public.skills existing where existing.name=seed.name)
 on conflict(slug) do nothing;
-insert into public.services(name,slug,category) values
+insert into public.services(name,slug,category)
+select seed.name,seed.slug,seed.category from (values
  ('Монтаж видеороликов','video-editing-service','Видео'),
  ('Моушн-дизайн','motion-design-service','Видео'),
  ('Дизайн фирменного стиля','brand-design-service','Дизайн'),
@@ -46,5 +50,7 @@ insert into public.services(name,slug,category) values
  ('Анализ данных и дашборды','data-analysis-service','Аналитика'),
  ('Удалённое административное сопровождение','remote-assistant-service','Ассистирование'),
  ('Подготовка образовательных материалов','learning-materials-service','Обучение')
+) as seed(name,slug,category)
+where not exists (select 1 from public.services existing where existing.name=seed.name)
 on conflict(slug) do nothing;
 commit;

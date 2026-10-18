@@ -42,7 +42,7 @@ async function main() {
       "existing profile trigger is preserved without installing a duplicate",
       async () => {
         await db.exec(
-          `create function public.legacy_profile() returns trigger language plpgsql security definer as $$begin insert into public.profiles(id) values(new.id);return new;end$$;create trigger legacy_profile after insert on auth.users for each row execute function public.legacy_profile();`,
+          `create function public.handle_new_user() returns trigger language plpgsql security definer set search_path='' as $$begin insert into public.profiles(id,locale,timezone,currency_code,onboarding_completed) values(new.id,'ru','Europe/Chisinau','RUB',false) on conflict(id) do nothing;return new;end$$;create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();`,
         );
         await db.exec(sql);
         const r = await db.query(
@@ -50,9 +50,20 @@ async function main() {
         );
         assert.deepEqual(
           r.rows.map((r) => r.tgname),
-          ["legacy_profile"],
+          ["on_auth_user_created"],
         );
-        await db.exec("drop trigger legacy_profile on auth.users");
+        const probe = "99999999-9999-4999-8999-999999999999";
+        await db.query("insert into auth.users(id) values($1)", [probe]);
+        assert.equal(
+          (
+            await db.query("select timezone from public.profiles where id=$1", [
+              probe,
+            ])
+          ).rows[0].timezone,
+          "Europe/Chisinau",
+        );
+        await db.query("delete from auth.users where id=$1", [probe]);
+        await db.exec("drop trigger on_auth_user_created on auth.users");
       },
     );
     await run(
@@ -72,6 +83,9 @@ async function main() {
           ),
           "utf8",
         );
+        await db.query(
+          "insert into public.skills(name,slug,category) values('Сценарии для видео','legacy-video-scripts','Контент')",
+        );
         const before = (
           await db.query("select id,name,slug from public.skills order by slug")
         ).rows;
@@ -84,6 +98,11 @@ async function main() {
           await db.query("select id,name,slug from public.skills order by slug")
         ).rows;
         assert.deepEqual(first, second);
+        assert.equal(
+          second.filter((r) => r.name === "Сценарии для видео").length,
+          1,
+        );
+        assert.ok(second.some((r) => r.slug === "legacy-video-scripts"));
         for (const old of before)
           assert.deepEqual(
             second.find((r) => r.slug === old.slug),
@@ -121,6 +140,190 @@ async function main() {
         2,
       );
     });
+    const auditedBundle = fs.readFileSync(
+      path.join(__dirname, "../supabase/ops/02_apply_audited_mvp.sql"),
+      "utf8",
+    );
+    await run(
+      "audited update rolls back all changes when a later statement fails",
+      async () => {
+        await admin();
+        // Reproduce the audited project's existing registration trigger and missing workflows.
+        await db.exec(
+          "create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user(); drop function public.leadly_save_profile(text,text,text,numeric,text,public.opportunity_type[],boolean,boolean,boolean,text); drop function public.leadly_update_opportunity(uuid,public.opportunity_status,boolean,text); drop function public.leadly_reserve_ai(uuid); drop table public.leadly_ai_requests; alter table public.profiles drop column requested_plan;",
+        );
+        const broken = auditedBundle.replace(
+          "-- 0005_expand_digital_catalog.sql",
+          "select 1/0; -- deliberate local rollback test\n-- 0005_expand_digital_catalog.sql",
+        );
+        assert.notEqual(broken, auditedBundle);
+        await assert.rejects(db.exec(broken), /division by zero/);
+        await db.exec("rollback");
+        assert.equal(
+          (
+            await db.query(
+              "select count(*)::int as n from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='requested_plan'",
+            )
+          ).rows[0].n,
+          0,
+        );
+        assert.equal(
+          (
+            await db.query(
+              "select count(*)::int as n from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='leadly_save_profile'",
+            )
+          ).rows[0].n,
+          0,
+        );
+        assert.equal(
+          (
+            await db.query(
+              "select count(*)::int as n from pg_trigger where tgrelid='auth.users'::regclass and tgname='on_auth_user_created'",
+            )
+          ).rows[0].n,
+          1,
+        );
+      },
+    );
+    await run(
+      "audited update is repeatable and preserves the existing registration and rows",
+      async () => {
+        const before = (
+          await db.query(
+            "select id,display_name,timezone,onboarding_completed from public.profiles order by id",
+          )
+        ).rows;
+        const trigger = (
+          await db.query(
+            "select pg_get_triggerdef(oid) as definition from pg_trigger where tgrelid='auth.users'::regclass and tgname='on_auth_user_created'",
+          )
+        ).rows[0].definition;
+        const catalog = (
+          await db.query("select id,name,slug from public.skills order by id")
+        ).rows;
+        for (let i = 0; i < 2; i++) {
+          const result = await db.exec(auditedBundle);
+          const row = result
+            .flatMap((r) => r.rows || [])
+            .find((r) => r.leadly_update_result);
+          assert.ok(row, "The whole SQL bundle must return verification");
+          for (const [key, value] of Object.entries(
+            JSON.parse(row.leadly_update_result),
+          ))
+            if (
+              key.endsWith("_ready") ||
+              key.endsWith("_blocked") ||
+              key.endsWith("_only") ||
+              key.endsWith("_authenticated")
+            )
+              assert.equal(value, true, key);
+        }
+        assert.deepEqual(
+          (
+            await db.query(
+              "select id,display_name,timezone,onboarding_completed from public.profiles order by id",
+            )
+          ).rows,
+          before,
+        );
+        assert.deepEqual(
+          (await db.query("select id,name,slug from public.skills order by id"))
+            .rows,
+          catalog,
+        );
+        assert.equal(
+          (
+            await db.query(
+              "select pg_get_triggerdef(oid) as definition from pg_trigger where tgrelid='auth.users'::regclass and tgname='on_auth_user_created'",
+            )
+          ).rows[0].definition,
+          trigger,
+        );
+        assert.equal(
+          (
+            await db.query(
+              "select count(*)::int as n from pg_trigger where tgrelid='auth.users'::regclass and not tgisinternal",
+            )
+          ).rows[0].n,
+          1,
+        );
+      },
+    );
+    // Model Supabase default table grants after the bundle recreates the quota table.
+    // RLS must still hide all quota rows even when table grants allow SELECT.
+    await db.exec(
+      "grant select,insert,update,delete on public.leadly_ai_requests to authenticated,service_role",
+    );
+    await run(
+      "live finance policy gap is reproduced and repaired repeatably",
+      async () => {
+        await admin();
+        await db.exec(
+          "drop policy if exists transactions_delete_own on public.transactions",
+        );
+        await asUser(a);
+        await db.query(
+          "insert into public.transactions(id,user_id,type,amount,currency_code,occurred_on) values('44444444-4444-4444-8444-444444444444',$1,'income',1500,'RUB',current_date)",
+          [a],
+        );
+        assert.equal(
+          (
+            await db.query(
+              "delete from public.transactions where id='44444444-4444-4444-8444-444444444444' returning id",
+            )
+          ).rows.length,
+          0,
+        );
+        await admin();
+        const repair = fs.readFileSync(
+          path.join(
+            __dirname,
+            "../supabase/migrations/0006_finance_delete_own.sql",
+          ),
+          "utf8",
+        );
+        await db.exec(repair);
+        await db.exec(repair);
+        await asUser(a);
+        assert.equal(
+          (
+            await db.query(
+              "delete from public.transactions where id='44444444-4444-4444-8444-444444444444' returning id",
+            )
+          ).rows.length,
+          1,
+        );
+        await admin();
+      },
+    );
+    await run(
+      "finance deletion cannot delete another user's entries",
+      async () => {
+        await asUser(b);
+        await db.query(
+          "insert into public.transactions(id,user_id,type,amount,currency_code,occurred_on) values('55555555-5555-4555-8555-555555555555',$1,'expense',500,'RUB',current_date)",
+          [b],
+        );
+        await asUser(a);
+        assert.equal(
+          (
+            await db.query(
+              "delete from public.transactions where id='55555555-5555-4555-8555-555555555555' returning id",
+            )
+          ).rows.length,
+          0,
+        );
+        await admin();
+        assert.equal(
+          (
+            await db.query(
+              "select count(*)::int as n from public.transactions where id='55555555-5555-4555-8555-555555555555'",
+            )
+          ).rows[0].n,
+          1,
+        );
+      },
+    );
     await db.query(
       "insert into public.opportunities(id,canonical_key,type,title,source_url) values($1,'test-opportunity','project','Test Figma project','https://example.com/task')",
       [o],
