@@ -9,3 +9,7 @@ out
 !.env.example
 .codex-backups/
 *.bak-*
+
+test-results/
+playwright-report/
+*.tsbuildinfo

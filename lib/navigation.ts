@@ -4,30 +4,25 @@ import {
   LayoutDashboard,
   Search,
   Settings,
-  Sparkles,
   Send,
   Users,
   WalletCards,
+  Radio,
+  UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-
-export type NavItem = {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-};
-
+export type NavItem = { label: string; href: string; icon: LucideIcon };
 export const mainNavigation: NavItem[] = [
-  { label: "Главная", href: "/", icon: LayoutDashboard },
+  { label: "Обзор", href: "/", icon: LayoutDashboard },
   { label: "Возможности", href: "/opportunities", icon: Search },
+  { label: "Моя воронка", href: "/crm", icon: BriefcaseBusiness },
+  { label: "Отклики", href: "/ai-outreach", icon: Send },
   { label: "Клиенты", href: "/clients", icon: Users },
-  { label: "CRM", href: "/crm", icon: BriefcaseBusiness },
   { label: "Аналитика", href: "/analytics", icon: BarChart3 },
-  { label: "Доход", href: "/revenue", icon: WalletCards },
-  { label: "AI-профиль", href: "/profile", icon: Sparkles },
-  { label: "AI-отклики", href: "/ai-outreach", icon: Send },
+  { label: "Финансы", href: "/revenue", icon: WalletCards },
+  { label: "Источники", href: "/sources", icon: Radio },
 ];
-
 export const settingsNavigation: NavItem[] = [
+  { label: "Мой профиль", href: "/profile", icon: UserRound },
   { label: "Настройки", href: "/settings", icon: Settings },
 ];

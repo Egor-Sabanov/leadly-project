@@ -1,60 +1,92 @@
+"use client";
+import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { Target } from "lucide-react";
+import { ArrowUpRight, Menu, X } from "lucide-react";
 import { LeadlyLogo } from "@/components/brand/LeadlyLogo";
 import { mainNavigation, settingsNavigation } from "@/lib/navigation";
-
-type SidebarProps = { activeHref?: string };
-
-export function Sidebar({ activeHref = "/" }: SidebarProps) {
+export function Sidebar({ activeHref = "/" }: { activeHref?: string }) {
+  const [open, setOpen] = useState(false);
   return (
-    <aside className="sidebar">
-      <div className="sidebar-brand">
+    <>
+      <header className="mobile-header">
         <LeadlyLogo />
-      </div>
-
-      <nav className="sidebar-nav" aria-label="Основная навигация">
-        {mainNavigation.map((item) => {
-          const Icon = item.icon;
-          const active = item.href === activeHref;
-          return (
-            <Link className={`nav-item ${active ? "active" : ""}`} href={item.href as Route} key={item.href} aria-current={active ? "page" : undefined}>
-              <Icon size={17} aria-hidden="true" />
-              <span>{item.label}</span>
+        <button
+          className="icon-btn"
+          aria-label={open ? "Закрыть меню" : "Открыть меню"}
+          aria-expanded={open}
+          aria-controls="app-navigation"
+          onClick={() => setOpen(!open)}
+        >
+          {open ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </header>
+      {open && (
+        <button
+          className="nav-backdrop"
+          aria-label="Закрыть меню"
+          onClick={() => setOpen(false)}
+        />
+      )}
+      <aside
+        className={`sidebar ${open ? "sidebar-open" : ""}`}
+        id="app-navigation"
+      >
+        <div className="sidebar-brand">
+          <LeadlyLogo />
+        </div>
+        <span className="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</span>
+        <nav className="sidebar-nav" aria-label="Основная навигация">
+          {mainNavigation.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href as Route}
+              title={label}
+              className={`nav-item ${activeHref === href ? "active" : ""}`}
+              aria-current={activeHref === href ? "page" : undefined}
+              onClick={() => setOpen(false)}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+              {activeHref === href && <span className="nav-active-dot" />}
             </Link>
-          );
-        })}
-      </nav>
-
-      <nav className="sidebar-nav sidebar-nav-settings" aria-label="Настройки">
-        {settingsNavigation.map((item) => {
-          const Icon = item.icon;
-          const active = item.href === activeHref;
-          return (
-            <Link className={`nav-item ${active ? "active" : ""}`} href={item.href as Route} key={item.href} aria-current={active ? "page" : undefined}>
-              <Icon size={17} aria-hidden="true" />
-              <span>{item.label}</span>
+          ))}
+        </nav>
+        <nav
+          className="sidebar-nav sidebar-nav-settings"
+          aria-label="Личные настройки"
+        >
+          {settingsNavigation.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href as Route}
+              className={`nav-item ${activeHref === href ? "active" : ""}`}
+              title={label}
+              onClick={() => setOpen(false)}
+              aria-current={activeHref === href ? "page" : undefined}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
             </Link>
-          );
-        })}
-      </nav>
-
-      <div className="sidebar-bottom">
-        <div className="goal-mini">
-          <Target size={16} aria-hidden="true" />
-          <div>
-            <span>Цель месяца</span>
-            <strong>150 000 ₽</strong>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <div className="sidebar-note">
+            <span className="badge">МЕНЬШЕ ШУМА. БОЛЬШЕ ДЕЙСТВИЙ.</span>
+            <p>
+              Твоя следующая
+              <br />
+              возможность — ближе.
+            </p>
+            <Link href="/opportunities">
+              Найти своё <ArrowUpRight size={16} />
+            </Link>
+          </div>
+          <div className="sidebar-signature">
+            LEADLY <span>Сделай следующий шаг ↗</span>
           </div>
         </div>
-        <div className="profile-mini">
-          <div className="avatar" aria-hidden="true">Е</div>
-          <div>
-            <strong>Егор</strong>
-            <span>Веб-разработка</span>
-          </div>
-        </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

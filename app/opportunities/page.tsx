@@ -1,81 +1,78 @@
-import { redirect } from 'next/navigation';
-import { Search, Sparkles } from 'lucide-react';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { OpportunityFeed } from '@/components/opportunities/OpportunityFeed';
-import { scoreOpportunity } from '@/lib/opportunity-scoring';
+import { Search, Sparkles } from "lucide-react";
+import { getAccount } from "@/lib/workspace";
+import { SetupScreen } from "@/components/layout/SetupScreen";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { OpportunityFeed } from "@/components/opportunities/OpportunityFeed";
+import { scoreOpportunity } from "@/lib/opportunity-scoring";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 type RawMetadata = Record<string, unknown>;
 
 function asMetadata(value: unknown): RawMetadata {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as RawMetadata;
 }
 
 function metadataString(metadata: RawMetadata, key: string): string | null {
   const value = metadata[key];
-  return typeof value === 'string' ? value : null;
+  return typeof value === "string" ? value : null;
 }
 
 export default async function OpportunitiesPage() {
-  let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
-  try {
-    supabase = await createSupabaseServerClient();
-  } catch {
-    redirect('/auth');
-  }
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-  if (authError || !user) redirect('/auth');
+  const account = await getAccount();
+  if (!account) return <SetupScreen />;
+  const { supabase, user } = account;
 
   const [
     { data: opportunities, error: opportunitiesError },
     { data: userStates, error: statesError },
-    { data: profile },
-    { data: preferences },
+    { data: profile, error: profileError },
+    { data: preferences, error: preferencesError },
     { data: userSkills, error: userSkillsError },
     { data: userServices, error: userServicesError },
   ] = await Promise.all([
     supabase
-      .from('opportunities')
+      .from("opportunities")
       .select(
-        'id,title,company_name,description,source_url,category,location,remote,budget_min,budget_max,currency_code,competition,published_at,discovered_at,type,raw_metadata',
+        "id,title,company_name,description,source_url,category,location,remote,budget_min,budget_max,currency_code,competition,published_at,discovered_at,type,raw_metadata",
       )
-      .eq('is_active', true)
-      .order('published_at', { ascending: false, nullsFirst: false })
-      .order('discovered_at', { ascending: false })
+      .eq("is_active", true)
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("discovered_at", { ascending: false })
       .limit(100),
     supabase
-      .from('user_opportunities')
-      .select('opportunity_id,status,is_saved')
-      .eq('user_id', user.id),
+      .from("user_opportunities")
+      .select("opportunity_id,status,is_saved")
+      .eq("user_id", user.id),
     supabase
-      .from('profiles')
-      .select('headline,skills_summary,target_monthly_income,currency_code')
-      .eq('id', user.id)
+      .from("profiles")
+      .select("headline,skills_summary,target_monthly_income,currency_code")
+      .eq("id", user.id)
       .maybeSingle(),
     supabase
-      .from('user_preferences')
-      .select('preferred_opportunity_types,preferred_competition,remote_only')
-      .eq('user_id', user.id)
+      .from("user_preferences")
+      .select("preferred_opportunity_types,preferred_competition,remote_only")
+      .eq("user_id", user.id)
       .maybeSingle(),
     supabase
-      .from('profile_skills')
-      .select('level,years_experience,is_primary,skills(name)')
-      .eq('user_id', user.id),
+      .from("profile_skills")
+      .select("level,years_experience,is_primary,skills(name)")
+      .eq("user_id", user.id),
     supabase
-      .from('profile_services')
-      .select('services(name)')
-      .eq('user_id', user.id),
+      .from("profile_services")
+      .select("services(name)")
+      .eq("user_id", user.id),
   ]);
 
   const stateError =
-    opportunitiesError || statesError || userSkillsError || userServicesError;
+    opportunitiesError ||
+    statesError ||
+    profileError ||
+    preferencesError ||
+    userSkillsError ||
+    userServicesError;
   const stateById = new Map(
     (userStates || []).map((row) => [row.opportunity_id, row]),
   );
@@ -87,14 +84,14 @@ export default async function OpportunitiesPage() {
   }>;
   const skillDetails = typedUserSkills
     .map((row) => ({
-      name: row.skills?.name || '',
+      name: row.skills?.name || "",
       level: row.level,
       yearsExperience: row.years_experience,
       isPrimary: row.is_primary,
     }))
     .filter((skill) => Boolean(skill.name));
   const catalogSkillNames = skillDetails.map((skill) => skill.name);
-  const textSkillNames = (profile?.skills_summary || '')
+  const textSkillNames = (profile?.skills_summary || "")
     .split(/[,;\n]+/)
     .map((name: string) => name.trim())
     .filter(Boolean);
@@ -107,12 +104,16 @@ export default async function OpportunitiesPage() {
     .map((row) => row.services?.name)
     .filter((name): name is string => Boolean(name));
 
-  const scoredRows = (opportunities || []).map((item) => {
+  const eligibleOpportunities = (opportunities || []).filter(
+    (item) => !preferences?.remote_only || item.remote,
+  );
+  const scoredRows = eligibleOpportunities.map((item) => {
     const metadata = asMetadata(item.raw_metadata);
 
     return {
       opportunity_id: item.id,
       user_id: user.id,
+      scored_at: new Date().toISOString(),
       ...scoreOpportunity(
         {
           headline: profile?.headline,
@@ -127,39 +128,40 @@ export default async function OpportunitiesPage() {
         },
         {
           ...item,
-          budget_confidence: metadataString(metadata, 'budget_confidence'),
-          budget_extraction: metadataString(metadata, 'budget_extraction'),
-          currency_evidence: metadataString(metadata, 'currency_evidence'),
+          budget_confidence: metadataString(metadata, "budget_confidence"),
+          budget_extraction: metadataString(metadata, "budget_extraction"),
+          budget_period: metadataString(metadata, "budget_period"),
+          currency_evidence: metadataString(metadata, "currency_evidence"),
         },
       ),
     };
   });
 
   let scoreError: { message: string } | null = null;
-  if (scoredRows.length) {
+  if (scoredRows.length && !stateError) {
     const { error } = await supabase
-      .from('opportunity_scores')
+      .from("opportunity_scores")
       .upsert(scoredRows, {
-        onConflict: 'opportunity_id,user_id,algorithm_version',
+        onConflict: "opportunity_id,user_id,algorithm_version",
       });
     if (error) scoreError = { message: error.message };
   }
 
-  const scoreById = new Map(
-    scoredRows.map((row) => [row.opportunity_id, row]),
-  );
-  const items = (opportunities || []).map((item) => ({
+  const scoreById = new Map(scoredRows.map((row) => [row.opportunity_id, row]));
+  const items = eligibleOpportunities.map((item) => ({
     ...item,
-    status: stateById.get(item.id)?.status || 'new',
+    status: stateById.get(item.id)?.status || "new",
     is_saved: stateById.get(item.id)?.is_saved || false,
     match_score: scoreById.get(item.id)?.match_score ?? null,
     fit_score: scoreById.get(item.id)?.fit_score ?? null,
-    matched_keywords: scoreById.get(item.id)?.explanation.matched_keywords ?? [],
+    matched_keywords:
+      scoreById.get(item.id)?.explanation.matched_keywords ?? [],
     score_reasons: scoreById.get(item.id)?.explanation.reasons ?? [],
     score_cautions: scoreById.get(item.id)?.explanation.cautions ?? [],
     money_score: scoreById.get(item.id)?.money_score ?? null,
     money_score_status:
-      scoreById.get(item.id)?.explanation.money_score_status ?? 'missing_budget',
+      scoreById.get(item.id)?.explanation.money_score_status ??
+      "missing_budget",
     competition_score: scoreById.get(item.id)?.competition_score ?? null,
   }));
 
@@ -169,9 +171,9 @@ export default async function OpportunitiesPage() {
       <section className="content profile-content">
         <header className="topbar">
           <div>
-            <div className="eyebrow">OPPORTUNITY ENGINE</div>
+            <div className="eyebrow">ТВОЙ РАДАР</div>
             <h1>Возможности</h1>
-            <p>Реальные предложения из базы LEADLY, а не демонстрационные карточки.</p>
+            <p>Подходящие задачи начинаются с правильного фокуса.</p>
           </div>
         </header>
 
@@ -182,10 +184,10 @@ export default async function OpportunitiesPage() {
           <div>
             <h2>Твой радар возможностей</h2>
             <p>
-              Сохраняй интересные предложения и отслеживай их статус. Match Score
-              учитывает навыки и услуги из профиля, тип и свежесть предложения.
-              Финансовая оценка отдельно учитывает достоверность бюджета, валюту
-              и период оплаты.
+              Сохраняй интересные предложения и отслеживай их статус. Оценка
+              совпадения учитывает навыки и услуги из профиля, тип и свежесть
+              предложения. Финансовая оценка отдельно учитывает достоверность
+              бюджета, валюту и период оплаты.
             </p>
           </div>
           <span className="opportunities-count">{items.length} в базе</span>
@@ -197,7 +199,8 @@ export default async function OpportunitiesPage() {
             <p>{stateError.message}</p>
             <p>
               Проверь миграции Supabase и политики доступа к таблицам
-              opportunities, user_opportunities, profile_skills и profile_services.
+              opportunities, user_opportunities, profile_skills и
+              profile_services.
             </p>
           </div>
         ) : (
@@ -205,17 +208,17 @@ export default async function OpportunitiesPage() {
             <OpportunityFeed opportunities={items} />
             {scoreError && (
               <p className="auth-message" role="status">
-                Оценки рассчитаны для этой загрузки, но не удалось сохранить их в
-                историю: {scoreError.message}
+                Оценки рассчитаны для этой загрузки, но не удалось сохранить их
+                в историю: {scoreError.message}
               </p>
             )}
           </>
         )}
 
         <p className="opportunities-note">
-          <Sparkles size={14} /> Источники ещё не подключены автоматически.
-          Здесь показываются только записи, которые уже находятся в твоей базе
-          Supabase.
+          <Sparkles size={14} /> Подключённые источники и время обновления — в
+          разделе «Источники». Оценки объясняют совпадения с профилем и не
+          гарантируют получение работы.
         </p>
       </section>
     </main>

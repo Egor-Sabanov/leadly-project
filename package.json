@@ -7,7 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test:rss": "node scripts/test-rss-ingestion.cjs"
+    "test:rss": "node scripts/test-rss-ingestion.cjs",
+    "test:scoring": "node test-opportunity-scoring-v14.cjs",
+    "test:mvp": "node scripts/test-mvp.cjs",
+    "test:db": "node scripts/test-database.cjs",
+    "test": "npm run test:rss && npm run test:scoring && npm run test:mvp && npm run test:db",
+    "check": "npm run lint && npm test && npm run build",
+    "test:ui": "playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -18,6 +24,9 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@electric-sql/pglite": "0.5.10",
+    "@playwright/test": "1.64.1",
     "@types/node": "20.17.30",
     "@types/react": "19.0.12",
     "@types/react-dom": "19.0.4",
