@@ -12,7 +12,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 async function access(request: Request, mutation = false) {
   const auth = await accountApi(request, mutation);
-  if (auth.error) return { error: auth.error, account: null, admin: null };
+  if (auth.error) {
+    auth.error.headers.set("Cache-Control", "private, no-store");
+    return { error: auth.error, account: null, admin: null };
+  }
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key)
     return {
@@ -37,11 +40,21 @@ export async function GET(request: Request) {
   const result = await auth
     .admin!.storage.from(AVATAR_BUCKET)
     .download(`${auth.account!.user.id}/avatar.webp`);
-  if (result.error || !result.data)
+  if (result.error || !result.data) {
+    const missing =
+      result.error &&
+      (/not.?found|does not exist|no_such_key/i.test(result.error.message) ||
+        String(result.error.status) === "404");
+    if (!missing)
+      return NextResponse.json(
+        { error: "Не удалось загрузить фото. Попробуй ещё раз." },
+        { status: 503, headers: { "Cache-Control": "private, no-store" } },
+      );
     return new NextResponse(null, {
       status: 404,
       headers: { "Cache-Control": "private, no-store" },
     });
+  }
   const buffer = Buffer.from(await result.data.arrayBuffer());
   const etag = '"' + createHash("sha256").update(buffer).digest("hex") + '"';
   const headers = {
@@ -168,5 +181,8 @@ export async function DELETE(request: Request) {
     );
   revalidatePath("/profile");
   revalidatePath("/");
-  return NextResponse.json({ deleted: true });
+  return NextResponse.json(
+    { deleted: true },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

@@ -20,7 +20,8 @@
     "telegram:setup": "node scripts/setup-telegram.cjs",
     "setup:profile-storage": "node --env-file-if-exists=.env.local scripts/setup-profile-storage.cjs",
     "sources:sync": "node --env-file-if-exists=.env.local scripts/sync-sources.cjs",
-    "test:assets": "node scripts/test-account-assets.cjs"
+    "test:assets": "node scripts/test-account-assets.cjs",
+    "check:readiness": "node --env-file-if-exists=.env.local scripts/check-readiness.cjs"
   },
   "dependencies": {
     "@fontsource-variable/golos-text": "5.3.0",

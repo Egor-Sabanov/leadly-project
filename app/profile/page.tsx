@@ -20,6 +20,7 @@ import { DisciplinePreset } from "@/components/profile/DisciplinePreset";
 import { mergeProfileSkills } from "@/lib/disciplines";
 
 type Profile = {
+  avatar_url: string | null;
   display_name: string | null;
   headline: string | null;
   skills_summary: string | null;
@@ -83,6 +84,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [name, setName] = useState("");
   const [headline, setHeadline] = useState("");
   const [skillsSummary, setSkillsSummary] = useState("");
@@ -122,7 +124,7 @@ export default function ProfilePage() {
           supabase
             .from("profiles")
             .select(
-              "display_name,headline,skills_summary,target_monthly_income,onboarding_completed,currency_code",
+              "display_name,headline,skills_summary,target_monthly_income,onboarding_completed,currency_code,avatar_url",
             )
             .eq("id", user.id)
             .maybeSingle(),
@@ -141,6 +143,7 @@ export default function ProfilePage() {
         setEmail(user.email || "");
         const p = profile as Profile | null;
         const prefs = preferences as Preferences | null;
+        setAvatarUrl(p?.avatar_url || "");
         setName(
           p?.display_name ||
             String(
@@ -294,7 +297,11 @@ export default function ProfilePage() {
                   </p>
                 </div>
               </div>
-              <AvatarEditor name={name} />
+              <AvatarEditor
+                name={name}
+                initialUrl={avatarUrl}
+                enabled={!!userId}
+              />
               <label className="profile-label">
                 Email аккаунта
                 <input value={email} readOnly />
@@ -477,7 +484,6 @@ export default function ProfilePage() {
             </div>
           </form>
         )}
-        <div style={{ marginTop: 24 }}></div>
       </section>
     </main>
   );

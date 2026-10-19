@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { getAccount, formatMoney, statusLabels } from "@/lib/workspace";
 import { SetupScreen } from "@/components/layout/SetupScreen";
-import Image from "next/image";
+import { AvatarBadge } from "@/components/profile/AvatarBadge";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { QueryError } from "@/components/layout/QueryError";
@@ -89,14 +89,7 @@ export default async function Home() {
             <div className="topbar-actions">
               {p?.avatar_url?.startsWith("/api/profile/avatar?") && (
                 <Link href="/profile" aria-label="Открыть профиль">
-                  <Image
-                    unoptimized
-                    src={p.avatar_url}
-                    className="header-avatar"
-                    width={38}
-                    height={38}
-                    alt="Твоя аватарка"
-                  />
+                  <AvatarBadge url={p.avatar_url} name={name} />
                 </Link>
               )}
               <span className="signed-in-email">{user.email}</span>
