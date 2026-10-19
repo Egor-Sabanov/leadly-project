@@ -1,6 +1,7 @@
 import { importHhDiscovery } from "@/lib/sources/hh";
 import { isRussianOpportunity } from "@/lib/opportunity-language";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { isCronAuthorized, retryIngestion, summarizeIngestion, TransientIngestError, type IngestResult } from "@/lib/sources/ingest-runtime";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -8,6 +9,7 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 const MAX_FEEDS = 10;
 const MAX_ITEMS_PER_FEED = 40;
@@ -228,7 +230,7 @@ async function safePublicHttpsUrl(value: string): Promise<boolean> {
   }
 }
 
-async function fetchPublicFeed(initialUrl: string): Promise<string> {
+async function fetchPublicFeed(initialUrl: string, signal: AbortSignal): Promise<string> {
   let currentUrl = initialUrl;
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
     if (!(await safePublicHttpsUrl(currentUrl)))
@@ -239,7 +241,7 @@ async function fetchPublicFeed(initialUrl: string): Promise<string> {
         accept:
           "application/atom+xml, application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.1",
       },
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]),
       cache: "no-store",
       redirect: "manual",
     });
@@ -253,7 +255,12 @@ async function fetchPublicFeed(initialUrl: string): Promise<string> {
       currentUrl = new URL(location, currentUrl).toString();
       continue;
     }
-    if (!response.ok) throw new Error(`Feed returned HTTP ${response.status}`);
+    if (!response.ok) {
+      await response.body?.cancel();
+      if (response.status === 408 || response.status === 429 || response.status >= 500)
+        throw new TransientIngestError(`Feed returned HTTP ${response.status}`);
+      throw new Error(`Feed returned HTTP ${response.status}`);
+    }
     const contentLength = Number(response.headers.get("content-length") || 0);
     if (contentLength > MAX_RESPONSE_BYTES) {
       await response.body?.cancel();
@@ -895,16 +902,23 @@ function canonicalKey(url: string): string {
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
   const authorization = request.headers.get("authorization");
-  if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const responseHeaders = { "Cache-Control": "no-store, max-age=0" };
+  if (!isCronAuthorized(cronSecret, authorization)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: responseHeaders });
   }
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const started = Date.now();
+  // Leave time for a final report before the platform's 300-second ceiling.
+  const signal = AbortSignal.timeout(240_000);
+  console.info(JSON.stringify({ event: "ingestion_started", runId, startedAt }));
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
     return NextResponse.json(
       { error: "На сервере не настроены Supabase URL и service role key." },
-      { status: 503 },
+      { status: 503, headers: responseHeaders },
     );
   }
 
@@ -924,36 +938,27 @@ export async function GET(request: Request) {
         error:
           "Добавь HTTPS RSS/Atom адреса в LEADLY_RSS_FEEDS (по одному на строку).",
       },
-      { status: 400 },
+      { status: 400, headers: responseHeaders },
     );
-  }
-  for (const feed of feeds) {
-    if (!(await safePublicHttpsUrl(feed))) {
-      return NextResponse.json(
-        {
-          error:
-            "Разрешены только HTTPS RSS/Atom адреса, которые разрешаются исключительно в публичные IP, без логина/пароля и нестандартных портов.",
-        },
-        { status: 400 },
-      );
-    }
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init) => fetch(input, {
+        ...init,
+        signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]),
+      }),
+    },
   });
-  const report: Array<{
-    feed: string;
-    imported: number;
-    skipped: number;
-    error?: string;
-  }> = [];
+  const report: IngestResult[] = [];
 
   for (const feedUrl of feeds) {
     let imported = 0;
     let skipped = 0;
     try {
-      const xml = await fetchPublicFeed(feedUrl);
+      signal.throwIfAborted();
+      const xml = await retryIngestion(() => fetchPublicFeed(feedUrl, signal), signal);
       const items = parseFeed(xml);
       if (!items.length)
         throw new Error(
@@ -980,86 +985,105 @@ export async function GET(request: Request) {
         .single();
       if (sourceError || !source)
         throw new Error(
-          sourceError?.message || "Не удалось сохранить источник.",
+          "Не удалось сохранить источник. Проверь схему и доступ к базе.",
         );
 
+      // A feed can repeat the same URL with different tracking parameters.
+      // Deduplicate before a single atomic upsert (Postgres rejects duplicate
+      // conflict keys in one statement). Never touch users' saved states.
+      const rows = new Map<string, Record<string, unknown>>();
       for (const item of items) {
         if (!isRussianOpportunity(item)) {
           skipped++;
           continue;
         }
         const budget = extractBudget(`${item.title} ${item.description}`);
-        const { error } = await supabase.from("opportunities").upsert(
-          {
-            source_id: source.id,
-            external_id: item.guid || item.link,
-            canonical_key: canonicalKey(item.link),
-            type: classifyFeedItem(
+        const key = canonicalKey(item.link);
+        if (rows.has(key)) {
+          skipped++;
+          continue;
+        }
+        rows.set(key, {
+          source_id: source.id,
+          external_id: item.guid || item.link,
+          canonical_key: key,
+          type: classifyFeedItem(
+            `${item.title} ${item.description}`,
+            feedUrl,
+            item.description,
+          ),
+          title: item.title.slice(0, 300),
+          company_name:
+            (sourceUrl.hostname.toLowerCase().replace(/^www\./, "") ===
+              "hnrss.org" &&
+              /^\/whoishiring\/freelance\/?$/i.test(sourceUrl.pathname)) ||
+            (sourceUrl.hostname.toLowerCase().replace(/^www\./, "") ===
+              "codeur.com" &&
+              /^\/projects\/?$/i.test(sourceUrl.pathname))
+              ? null
+              : sourceName,
+          description: item.description || null,
+          source_url: item.link,
+          category: "RSS",
+          remote:
+            /(^|\.)(weworkremotely\.com|remotive\.com|jobicy\.com|remoteok\.com)$/.test(
+              sourceUrl.hostname,
+            ) ||
+            /\bremote\b|удал[её]нн/i.test(
               `${item.title} ${item.description}`,
-              feedUrl,
-              item.description,
             ),
-            title: item.title.slice(0, 300),
-            company_name:
-              (sourceUrl.hostname.toLowerCase().replace(/^www\./, "") ===
-                "hnrss.org" &&
-                /^\/whoishiring\/freelance\/?$/i.test(sourceUrl.pathname)) ||
-              (sourceUrl.hostname.toLowerCase().replace(/^www\./, "") ===
-                "codeur.com" &&
-                /^\/projects\/?$/i.test(sourceUrl.pathname))
-                ? null
-                : sourceName,
-            description: item.description || null,
-            source_url: item.link,
-            category: "RSS",
-            remote:
-              /(^|\.)(weworkremotely\.com|remotive\.com|jobicy\.com|remoteok\.com)$/.test(
-                sourceUrl.hostname,
-              ) ||
-              /\bremote\b|удал[её]нн/i.test(
-                `${item.title} ${item.description}`,
-              ),
-            currency_code: budget.currency,
-            budget_min: budget.min,
-            budget_max: budget.max,
-            published_at: item.publishedAt,
-            raw_metadata: {
-              remote_evidence: "source_or_text_inference",
-              feed_url: feedUrl,
-              guid: item.guid,
-              ingestion: "rss-ru-v4",
-              content_language: "ru",
-              language_filter: "ru-content-v1",
-              budget_extraction:
-                budget.confidence === "none" ? "not_found" : "heuristic",
-              budget_confidence: budget.confidence,
-              currency_evidence: budget.currencyEvidence,
-            },
-            evidence: [{ type: "source_link", url: item.link }],
-            is_active: true,
+          currency_code: budget.currency,
+          budget_min: budget.min,
+          budget_max: budget.max,
+          published_at: item.publishedAt,
+          raw_metadata: {
+            remote_evidence: "source_or_text_inference",
+            feed_url: feedUrl,
+            guid: item.guid,
+            ingestion: "rss-ru-v4",
+            content_language: "ru",
+            language_filter: "ru-content-v1",
+            budget_extraction:
+              budget.confidence === "none" ? "not_found" : "heuristic",
+            budget_confidence: budget.confidence,
+            currency_evidence: budget.currencyEvidence,
           },
-          { onConflict: "canonical_key", ignoreDuplicates: false },
-        );
-        if (error)
-          throw new Error(
-            "Не удалось записать предложение. Проверь схему и доступ к базе.",
+          evidence: [{ type: "source_link", url: item.link }],
+          is_active: true,
+        });
+      }
+      if (rows.size) {
+        await retryIngestion(async () => {
+          const { error, status } = await supabase.from("opportunities").upsert(
+            [...rows.values()],
+            { onConflict: "canonical_key", ignoreDuplicates: false },
           );
-        else imported++;
+          if (error) {
+            if (status === 0 || status === 408 || status === 429 || status >= 500)
+              throw new TransientIngestError("База временно недоступна.");
+            throw new Error("Не удалось записать предложения. Проверь схему и доступ к базе.");
+          }
+        }, signal);
+        imported = rows.size;
       }
       report.push({ feed: sourceName, imported, skipped });
     } catch (error) {
       report.push({
-        feed: feedUrl,
+        // Configuration URLs can contain private query parameters. Logs and
+        // responses identify the source without copying its full URL.
+        feed: parseFeedUrl(feedUrl)?.hostname || "Некорректный RSS",
         imported,
         skipped,
-        error:
-          error instanceof Error ? error.message : "Unknown ingestion error",
+        error: signal.aborted
+          ? "Превышено время импорта. Источник будет проверен при следующем запуске."
+          : error instanceof Error ? error.message : "Импорт источника не выполнен.",
       });
     }
   }
 
   if (freelancehuntToken) {
     try {
+      signal.throwIfAborted();
       report.push(
         await importFreelancehuntProjects(supabase, freelancehuntToken),
       );
@@ -1078,6 +1102,7 @@ export async function GET(request: Request) {
 
   if (hhEnabled) {
     try {
+      signal.throwIfAborted();
       report.push(
         ...(await importHhDiscovery(supabase, {
           query: process.env.LEADLY_HH_QUERY,
@@ -1095,12 +1120,18 @@ export async function GET(request: Request) {
       });
     }
   }
-  return NextResponse.json({
-    ok: report.every((row) => !row.error),
-    feedsProcessed: report.length,
-    imported: report.reduce((sum, row) => sum + row.imported, 0),
-    skipped: report.reduce((sum, row) => sum + row.skipped, 0),
+  const summary = summarizeIngestion(report);
+  const outcome = {
+    ...summary,
+    runId,
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    durationMs: Date.now() - started,
     results: report,
-    note: "Обработаны русскоязычные записи RSS/Atom и API. Иностранные и записи с неопределённым языком пропущены. Эвристические бюджеты из RSS не подтверждены; бюджет из Freelancehunt берётся из структурированного API. Проверяй условия и актуальность перед откликом.",
-  });
+  };
+  console.info(JSON.stringify({ event: "ingestion_finished", ...outcome }));
+  return NextResponse.json({
+    ...outcome,
+    note: "Обработаны русскоязычные записи RSS/Atom и API. imported — созданные и обновлённые записи. Иностранные и записи с неопределённым языком пропущены. Эвристические бюджеты из RSS не подтверждены. Проверяй условия и актуальность перед откликом.",
+  }, { status: summary.ok ? 200 : 502, headers: responseHeaders });
 }

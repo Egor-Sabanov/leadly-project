@@ -123,8 +123,8 @@ const tests = [
     try { await fetchFreelancehuntProjectPage('https://api.freelancehunt.com/v2/projects?page%5Bnumber%5D=1', 'do-not-leak'); } catch (error) { assert.equal(error.message.includes('do-not-leak'), false); }
   }],
   ['endpoint rejects missing cron secret', async () => { endpointSandbox.process.env = {}; const r = await endpointGet({ headers: { get: () => null } }); assert.equal(r.status, 401); }],
-  ['endpoint rejects missing server Supabase config', async () => { endpointSandbox.process.env = { CRON_SECRET: 'test-secret' }; const r = await endpointGet({ headers: { get: () => 'Bearer test-secret' } }); assert.equal(r.status, 503); }],
-  ['endpoint rejects empty feed configuration', async () => { endpointSandbox.process.env = { CRON_SECRET: 'test-secret', NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'test-key', LEADLY_RSS_FEEDS: '' }; const r = await endpointGet({ headers: { get: () => 'Bearer test-secret' } }); assert.equal(r.status, 400); }],
+  ['endpoint rejects missing server Supabase config', async () => { endpointSandbox.process.env = { CRON_SECRET: 'test-secret-at-least-16-characters' }; const r = await endpointGet({ headers: { get: () => 'Bearer test-secret-at-least-16-characters' } }); assert.equal(r.status, 503); }],
+  ['endpoint rejects empty feed configuration', async () => { endpointSandbox.process.env = { CRON_SECRET: 'test-secret-at-least-16-characters', NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'test-key', LEADLY_RSS_FEEDS: '' }; const r = await endpointGet({ headers: { get: () => 'Bearer test-secret-at-least-16-characters' } }); assert.equal(r.status, 400); }],
 ];
 let failures = 0;
 (async () => {
