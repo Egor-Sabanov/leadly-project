@@ -70,4 +70,4 @@ npm run test:ui
 
 Направления (12 профессий), биржи и настройка Telegram: [MULTISOURCE-DISCOVERY](docs/MULTISOURCE-DISCOVERY.md). Kwork/FL.ru/Freelance.ru/Weblancer и предложенные Telegram-каналы пока являются каталогом для проверки доступа, не работающими автосборами.
 
-Подготовка обновления живой базы по аудиту владельца: [DATABASE-UPDATE](docs/DATABASE-UPDATE.md). SQL ещё требует выполнения владельцем через Supabase SQL Editor.
+Подготовка обновления живой базы по аудиту владельца: [DATABASE-UPDATE](docs/DATABASE-UPDATE.md). SQL применён владельцем; [24 живые API-проверки](docs/LIVE-DATABASE-VERIFICATION.md) прошли с очисткой тестовых аккаунтов. Прямой Chromium-login пока блокируется доверием к сертификату облачного прокси.
