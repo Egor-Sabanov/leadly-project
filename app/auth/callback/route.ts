@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const target =
     request.nextUrl.searchParams.get("next") === "/auth/reset"
       ? "/auth/reset"
-      : "/onboarding";
+      : "/welcome";
   if (code) {
     try {
       const supabase = await createSupabaseServerClient();

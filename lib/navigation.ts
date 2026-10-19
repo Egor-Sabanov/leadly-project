@@ -7,7 +7,6 @@ import {
   Send,
   Users,
   WalletCards,
-  Radio,
   UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -20,7 +19,6 @@ export const mainNavigation: NavItem[] = [
   { label: "Клиенты", href: "/clients", icon: Users },
   { label: "Аналитика", href: "/analytics", icon: BarChart3 },
   { label: "Финансы", href: "/revenue", icon: WalletCards },
-  { label: "Источники", href: "/sources", icon: Radio },
 ];
 export const settingsNavigation: NavItem[] = [
   { label: "Мой профиль", href: "/profile", icon: UserRound },

@@ -11,7 +11,7 @@ import {
   Clipboard,
   LoaderCircle,
   Send,
-  Sparkles,
+  PencilLine,
 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -295,10 +295,10 @@ export default function AiOutreachPage() {
             <section className="panel profile-section">
               <div className="profile-section-heading">
                 <span className="onboarding-icon">
-                  <Sparkles size={20} />
+                  <PencilLine size={20} />
                 </span>
                 <div>
-                  <h2>1. Возможность</h2>
+                  <h2>Возможность</h2>
                   <p>Выбери реальное предложение из базы.</p>
                 </div>
               </div>
@@ -323,8 +323,8 @@ export default function AiOutreachPage() {
                 </label>
               ) : (
                 <p className="auth-message">
-                  В базе пока нет активных предложений. Проверь источники или
-                  вернись позже.
+                  В базе пока нет активных предложений. Они появятся здесь после
+                  обновления ленты; вернись позже.
                 </p>
               )}
               {selected && (
@@ -351,7 +351,7 @@ export default function AiOutreachPage() {
                   <Send size={20} />
                 </span>
                 <div>
-                  <h2>2. Настройки сообщения</h2>
+                  <h2>Настройки сообщения</h2>
                   <p>
                     Выбери тон и добавь только те детали, которые можно
                     подтвердить.
@@ -393,7 +393,7 @@ export default function AiOutreachPage() {
                     {generating ? (
                       <LoaderCircle size={15} className="spin" />
                     ) : (
-                      <Sparkles size={15} />
+                      <PencilLine size={15} />
                     )}
                     Подготовить с AI
                   </button>
@@ -403,7 +403,7 @@ export default function AiOutreachPage() {
                     disabled={!selected || generating}
                     onClick={generate}
                   >
-                    <Sparkles size={16} /> Составить по шаблону
+                    <PencilLine size={16} /> Составить по шаблону
                   </button>
                 </div>
               </div>
@@ -414,7 +414,7 @@ export default function AiOutreachPage() {
                   <Clipboard size={20} />
                 </span>
                 <div>
-                  <h2>3. Проверка и редактирование</h2>
+                  <h2>Проверка и редактирование</h2>
                   <p>
                     Шаблон работает без внешнего AI. AI-генерация доступна при
                     подключённом провайдере; отправку выполняешь ты.

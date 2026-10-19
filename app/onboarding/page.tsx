@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { MotionToggle } from "@/components/brand/MotionToggle";
 import { LeadlyLogo } from "@/components/brand/LeadlyLogo";
 
 import { DisciplinePreset } from "@/components/profile/DisciplinePreset";
@@ -163,9 +164,7 @@ export default function OnboardingPage() {
     <main className="onboarding-shell">
       <header className="onboarding-header">
         <LeadlyLogo />
-        <span>
-          ШАГ 1 ИЗ 1 <i />
-        </span>
+        <MotionToggle />
       </header>
       {loading ? (
         <div className="onboarding-loading">

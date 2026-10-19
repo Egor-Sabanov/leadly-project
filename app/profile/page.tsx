@@ -6,7 +6,7 @@ import {
   ArrowLeft,
   LoaderCircle,
   Save,
-  Sparkles,
+  PencilLine,
   Target,
   UserRound,
 } from "lucide-react";
@@ -409,7 +409,7 @@ export default function ProfilePage() {
             <section className="panel profile-section" id="preferences">
               <div className="profile-section-heading">
                 <span className="onboarding-icon">
-                  <Sparkles size={20} />
+                  <PencilLine size={20} />
                 </span>
                 <div>
                   <h2>Предпочтения</h2>

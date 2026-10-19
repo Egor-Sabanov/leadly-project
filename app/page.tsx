@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { IndustryNews } from "@/components/workspace/IndustryNews";
+import { BrandMotion } from "@/components/brand/BrandMotion";
 import { loadRussianOpportunities } from "@/lib/russian-opportunities";
 import {
   ArrowUpRight,
@@ -7,7 +10,8 @@ import {
   Send,
   Target,
   UserRound,
-  Check,
+  MessageSquareText,
+  FolderKanban,
   Search,
 } from "lucide-react";
 import { getAccount, formatMoney, statusLabels } from "@/lib/workspace";
@@ -78,7 +82,7 @@ export default async function Home() {
             })
             .toUpperCase()}
           title={`Привет, ${name}.`}
-          description="Собери фокус. Выбери возможность. Сделай следующий шаг."
+          description="Твои задания, текущие договорённости и результаты."
           action={
             <div className="topbar-actions">
               <span className="signed-in-email">{user.email}</span>
@@ -89,15 +93,17 @@ export default async function Home() {
         {errors && <QueryError message={errors.message} />}{" "}
         {financial.error && <QueryError message={financial.error.message} />}
         <section className="welcome-hero dashboard-focus">
+          <BrandMotion variant="compact" />
           <div className="focus-copy">
-            <span className="eyebrow">ТВОЙ СЛЕДУЮЩИЙ ШАГ</span>
+            <span className="eyebrow">ПОДБОРКА ДЛЯ ТЕБЯ</span>
             <h2>
-              Найди проект,
-              <br />в котором ты сильнее.
+              Новые проекты.
+              <br />
+              Твои условия.
             </h2>
             <p>
-              Твои навыки заслуживают подходящих возможностей. Посмотри подборку
-              и выбери, с чего начать.
+              Выбирай задания по навыкам и бюджету. Сохраняй подходящие и веди
+              переговоры в одном месте.
             </p>
             <Link className="primary" href="/opportunities">
               Найти возможность <ArrowUpRight size={17} />
@@ -169,40 +175,45 @@ export default async function Home() {
         <div className="two-col">
           <section className="panel">
             <div className="section-heading" style={{ marginTop: 0 }}>
-              <h2>Твой маршрут</h2>
-              <span className="badge">ПО ШАГАМ</span>
+              <h2>Быстрый доступ</h2>
             </div>
             <div className="checklist">
               <Link href="/profile">
                 <span className="step-number">
-                  {p?.onboarding_completed ? <Check size={14} /> : "01"}
+                  <UserRound size={18} />
                 </span>
                 <span>
-                  <strong>Настрой свой профиль</strong>
+                  <strong>Профиль и навыки</strong>
                   <small>Специализация, навыки, услуги и цель</small>
                 </span>
                 <ArrowUpRight size={16} />
               </Link>
               <Link href="/opportunities">
-                <span className="step-number">02</span>
+                <span className="step-number">
+                  <Search size={18} />
+                </span>
                 <span>
-                  <strong>Выбери подходящие предложения</strong>
+                  <strong>Подборка заданий</strong>
                   <small>Проверь условия и объяснение оценки</small>
                 </span>
                 <ArrowUpRight size={16} />
               </Link>
               <Link href="/ai-outreach">
-                <span className="step-number">03</span>
+                <span className="step-number">
+                  <MessageSquareText size={18} />
+                </span>
                 <span>
-                  <strong>Подготовь сильный отклик</strong>
+                  <strong>Черновики откликов</strong>
                   <small>Добавь факты о себе и отредактируй текст</small>
                 </span>
                 <ArrowUpRight size={16} />
               </Link>
               <Link href="/crm">
-                <span className="step-number">04</span>
+                <span className="step-number">
+                  <FolderKanban size={18} />
+                </span>
                 <span>
-                  <strong>Доведи общение до результата</strong>
+                  <strong>Переговоры и статусы</strong>
                   <small>Статусы, заметки и история в одном месте</small>
                 </span>
                 <ArrowUpRight size={16} />
@@ -231,7 +242,7 @@ export default async function Home() {
             ) : (
               <div className="empty-state">
                 <UserRound size={27} />
-                <h2>История начинается с тебя</h2>
+                <h2>Здесь появятся твои действия</h2>
                 <p>
                   Сохрани первое предложение или измени его статус — здесь
                   появятся твои действия.
@@ -243,9 +254,22 @@ export default async function Home() {
             )}
           </section>
         </div>
+        <Suspense
+          fallback={
+            <section
+              className="panel news-loading"
+              aria-label="Новости индустрии"
+            >
+              <h2>В индустрии</h2>
+              <p className="muted">Загружаем публикации…</p>
+            </section>
+          }
+        >
+          <IndustryNews />
+        </Suspense>
         <footer className="footer-note">
-          <span>LEADLY · Возможности становятся делом</span>
-          <span>Твой темп. Твой следующий шаг.</span>
+          <span>LEADLY</span>
+          <Link href="/privacy">Конфиденциальность</Link>
         </footer>
       </section>
     </main>

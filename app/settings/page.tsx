@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, LockKeyhole } from "lucide-react";
 import { getAccount } from "@/lib/workspace";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -7,41 +7,14 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const account = await getAccount();
-  const checks = [
-    ["Подключение Supabase", !!process.env.NEXT_PUBLIC_SUPABASE_URL],
-    [
-      "Публичный ключ приложения",
-      !!(
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      ),
-    ],
-    [
-      "Серверный импорт",
-      !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.CRON_SECRET),
-    ],
-    [
-      "Генерация откликов через AI",
-      !!(
-        process.env.LEADLY_AI_API_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY
-      ),
-    ],
-    [
-      "Telegram — разрешённые каналы",
-      !!(
-        process.env.TELEGRAM_WEBHOOK_SECRET &&
-        process.env.TELEGRAM_ALLOWED_CHAT_IDS
-      ),
-    ],
-  ] as const;
   return (
     <main className="app-shell">
       <Sidebar activeHref="/settings" />
       <section className="content">
         <PageHeader
-          eyebrow="ПРОСТРАНСТВО ПОД КОНТРОЛЕМ"
+          eyebrow="АККАУНТ"
           title="Настройки"
-          description="Аккаунт, подключения и прозрачные границы автоматизации."
+          description="Личные данные, доступ и конфиденциальность."
         />
         <div className="two-col">
           <section className="panel">
@@ -52,28 +25,21 @@ export default async function SettingsPage() {
             <div className="checklist">
               <Link href="/profile">
                 <span>
-                  <strong>Личные данные и предпочтения</strong>
-                  <small>Профиль, цель и настройки рекомендаций</small>
+                  <strong>Профиль и предпочтения</strong>
+                  <small>Специализация, цель и подборка заданий</small>
                 </span>
                 <ArrowUpRight size={16} />
               </Link>
               <Link href="/profile/skills">
                 <span>
                   <strong>Навыки и услуги</strong>
-                  <small>Каталог твоих сильных сторон</small>
-                </span>
-                <ArrowUpRight size={16} />
-              </Link>
-              <Link href="/sources">
-                <span>
-                  <strong>Источники возможностей</strong>
-                  <small>Статус и происхождение данных</small>
+                  <small>Опыт, который учитывается при подборе</small>
                 </span>
                 <ArrowUpRight size={16} />
               </Link>
             </div>
             {account ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="settings-signout">
                 <SignOutButton />
                 <span className="muted">Выйти из аккаунта</span>
               </div>
@@ -83,35 +49,26 @@ export default async function SettingsPage() {
               </Link>
             )}
           </section>
-          <section className="panel">
-            <h2>Статус подключений</h2>
-            {checks.map(([label, ok]) => (
-              <div className="check-status" key={label}>
-                <span>{label}</span>
-                <span className="badge">{ok ? "ЗАДАНО" : "НЕ НАСТРОЕНО"}</span>
-              </div>
-            ))}
-            <p className="profile-muted" style={{ marginTop: 20 }}>
-              Здесь отображается наличие настроек, а не результат внешнего
-              запроса. Секреты задаются в настройках среды и не выводятся в
-              интерфейс.
+          <section className="panel privacy-settings">
+            <LockKeyhole size={22} aria-hidden="true" />
+            <h2>Данные и приватность</h2>
+            <p className="muted">
+              Контакты, заметки и финансовые записи доступны в твоём аккаунте.
+              LEADLY не отправляет отклики без твоего действия.
             </p>
+            <details>
+              <summary>Какие cookies используются</summary>
+              <p>
+                Только необходимые для авторизации и сохранения сессии.
+                Рекламные cookies и сторонние системы отслеживания не
+                подключены. Выход из аккаунта завершает сессию.
+              </p>
+            </details>
+            <Link href="/privacy" className="text-link">
+              Обработка персональных данных <ArrowUpRight size={14} />
+            </Link>
           </section>
         </div>
-        <section className="panel" style={{ marginTop: 20 }}>
-          <ShieldCheck size={23} />
-          <h2 style={{ marginTop: 14 }}>Ты принимаешь решения</h2>
-          <p className="muted">
-            LEADLY помогает оценить и подготовить действия. Отклики не
-            отправляются автоматически. Эвристическая оценка не гарантирует
-            доход. При использовании AI выбранные данные профиля и предложения
-            передаются настроенному провайдеру только после нажатия кнопки
-            генерации.
-          </p>
-          <Link href="/privacy" className="text-link">
-            Как обрабатываются данные ↗
-          </Link>
-        </section>
       </section>
     </main>
   );

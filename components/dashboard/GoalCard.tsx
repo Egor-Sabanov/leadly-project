@@ -1,4 +1,4 @@
-import { ArrowUpRight, Sparkles } from "lucide-react";
+import { ArrowUpRight, PencilLine } from "lucide-react";
 
 type GoalCardProps = { goal: number; progress: number; remaining: number };
 
@@ -11,8 +11,8 @@ export function GoalCard({ goal, progress, remaining }: GoalCardProps) {
         <div className="progress" aria-label={`Прогресс ${progress}%`}><i style={{ width: `${progress}%` }} /></div>
       </div>
       <div className="goal-action">
-        <Sparkles size={20} aria-hidden="true" />
-        <span>AI Money Plan</span>
+        <PencilLine size={20} aria-hidden="true" />
+        <span>План дохода</span>
         <small>Ещё {remaining.toLocaleString("ru-RU")} ₽ до цели</small>
         <button type="button">Посмотреть план <ArrowUpRight size={15} aria-hidden="true" /></button>
       </div>

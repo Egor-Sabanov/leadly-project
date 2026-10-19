@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut, LoaderCircle } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function SignOutButton() {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function signOut() {
@@ -14,8 +12,8 @@ export function SignOutButton() {
     try {
       const { error } = await getSupabaseBrowserClient().auth.signOut();
       if (error) throw error;
-      router.replace("/auth");
-      router.refresh();
+      // Discard cached private page payloads when the identity changes.
+      window.location.replace("/auth");
     } catch {
       setBusy(false);
       setError("Не удалось выйти. Попробуй ещё раз.");

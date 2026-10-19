@@ -1,4 +1,5 @@
 "use client";
+import { MotionToggle } from "@/components/brand/MotionToggle";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -98,8 +99,9 @@ export function Sidebar({ activeHref = "/" }: { activeHref?: string }) {
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <MotionToggle />
           <div className="sidebar-signature">
-            В твоём темпе.<span>От возможности к результату.</span>
+            LEADLY<span>Заказы · проекты · клиенты</span>
           </div>
         </div>
       </aside>

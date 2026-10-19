@@ -67,9 +67,12 @@ test("navigation is usable, tariff cards only appear in profile", async ({
   await page.goto("/demo");
   if (isMobile)
     await page.getByRole("button", { name: "Открыть меню" }).click();
-  await page.getByRole("link", { name: "Источники", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Источники", exact: true }),
+    page.getByRole("link", { name: "Источники", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: "Настройки", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Настройки", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".plan-card")).toHaveCount(0);
   for (const route of [
@@ -79,7 +82,6 @@ test("navigation is usable, tariff cards only appear in profile", async ({
     "/analytics",
     "/revenue",
     "/settings",
-    "/sources",
     "/ai-outreach",
   ]) {
     const response = await page.goto(route);
@@ -101,6 +103,15 @@ test("demo and auth have no WCAG A/AA violations", async ({ page }) => {
   for (const route of ["/demo", "/auth"]) {
     await page.goto(route);
     await page.locator("h1").waitFor();
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+          .map((a) => a.finished.catch(() => {})),
+      );
+    });
     const result = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();
@@ -248,18 +259,97 @@ test("profession filter finds video, sound, translations and assistance without 
   }
   await select.selectOption("all");
   await expect(page.locator(".opportunity-feed-card")).toHaveCount(12);
+  // Next streams its not-found UI with 200 when the loading boundary already flushed.
   await page.goto("/sources");
   await expect(
-    page.getByRole("heading", { name: "Kwork", exact: true }),
-  ).toBeVisible();
+    page.locator('meta[name="robots"][content*="noindex"]').first(),
+  ).toBeAttached();
+  await expect(page.locator(".source-card")).toHaveCount(0);
   await expect(
     page.getByRole("heading", {
-      name: "Telegram: кандидаты для подключения",
+      name: "Здесь пока нет возможности.",
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "@finder_vc" })).toHaveAttribute(
-    "href",
-    "https://t.me/finder_vc",
+  await expect(
+    page.getByRole("heading", { name: "Kwork", exact: true }),
+  ).toHaveCount(0);
+});
+
+test("registration requires data notice acknowledgement; providers stay icon-only and accessible", async ({
+  page,
+}) => {
+  await page.goto("/auth");
+  await page
+    .getByRole("textbox", { name: "Как к тебе обращаться" })
+    .fill("Проверка");
+  await page
+    .getByRole("textbox", { name: "Email", exact: true })
+    .fill("test@example.com");
+  await page.getByLabel("Пароль", { exact: true }).fill("example-password");
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/auth/v1/signup")) requests.push(request.url());
+  });
+  await page
+    .getByRole("button", { name: "Создать аккаунт", exact: true })
+    .click();
+  const acknowledgement = page.getByRole("checkbox", { name: /Я ознакомился/ });
+  await expect(acknowledgement).not.toBeChecked();
+  expect(
+    await acknowledgement.evaluate(
+      (element: HTMLInputElement) => element.validity.valueMissing,
+    ),
+  ).toBe(true);
+  expect(requests).toEqual([]);
+  await acknowledgement.check();
+  await page
+    .getByRole("button", { name: "Создать аккаунт", exact: true })
+    .click();
+  await expect(page.locator(".auth-message[role=alert]")).toContainText(
+    "Подключение аккаунтов ещё не настроено",
   );
+  for (const button of await page.locator(".social-auth-button").all()) {
+    await expect(button).toHaveAttribute(
+      "aria-label",
+      /Google|GitHub|VK|Яндекс/,
+    );
+    expect((await button.innerText()).trim()).toMatch(/^(vk|Я)?$/);
+  }
+  await expect(page.getByRole("link", { name: /Посмотреть демо/ })).toHaveCount(
+    0,
+  );
+});
+
+test("motion can be paused persistently and respects the system preference", async ({
+  page,
+}) => {
+  await page.goto("/auth");
+  await page
+    .getByRole("button", { name: "Приостановить анимации", exact: true })
+    .click();
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "paused");
+  expect(
+    await page
+      .locator(".brand-orbit--outer")
+      .evaluate((element) => getComputedStyle(element).animationName),
+  ).toBe("none");
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Включить анимации", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Включить анимации", exact: true })
+    .click();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(
+    await page
+      .locator(".brand-orbit--outer")
+      .evaluate((element) => getComputedStyle(element).animationName),
+  ).toBe("none");
+  await expect(page.locator(".story-reveal")).toBeVisible();
+  await page.goto("/sources");
+  await expect(
+    page.getByRole("heading", { name: "Здесь пока нет возможности." }),
+  ).toBeVisible();
 });

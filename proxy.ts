@@ -22,10 +22,40 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
+  const pathname = request.nextUrl.pathname;
+  const privatePaths = [
+    "/welcome",
+    "/onboarding",
+    "/profile",
+    "/opportunities",
+    "/crm",
+    "/clients",
+    "/analytics",
+    "/revenue",
+    "/settings",
+    "/sources",
+    "/ai-outreach",
+    "/supabase-test",
+  ];
+  const privatePage =
+    pathname === "/" ||
+    privatePaths.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    );
+  let authenticated = false;
   try {
-    await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+    authenticated = !error && !!user;
   } catch {
-    /* Private pages still verify the user; public pages remain reachable on provider failure. */
+    /* Public entry and privacy pages remain reachable on provider failure. */
+  }
+  if (privatePage && !authenticated) {
+    const login = NextResponse.redirect(new URL("/auth", request.url));
+    for (const cookie of response.cookies.getAll()) login.cookies.set(cookie);
+    return login;
   }
   return response;
 }

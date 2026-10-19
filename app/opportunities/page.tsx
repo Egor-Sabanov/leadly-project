@@ -1,5 +1,5 @@
 import { loadRussianOpportunities } from "@/lib/russian-opportunities";
-import { Search, Sparkles } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { getAccount } from "@/lib/workspace";
 import { SetupScreen } from "@/components/layout/SetupScreen";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -163,26 +163,29 @@ export default async function OpportunitiesPage() {
       <section className="content profile-content">
         <header className="topbar">
           <div>
-            <div className="eyebrow">ТВОЙ РАДАР</div>
+            <div className="eyebrow">ПОДБОРКА</div>
             <h1>Возможности</h1>
             <p>Русскоязычные задания и вакансии под твои навыки.</p>
           </div>
         </header>
 
         <div className="opportunities-intro panel">
-          <span className="onboarding-icon">
-            <Search size={20} />
-          </span>
-          <div>
-            <h2>Твой радар · только на русском</h2>
+          <details className="feed-intro-details">
+            <summary>
+              <span>
+                О ленте <ChevronDown size={14} aria-hidden="true" />
+              </span>
+              <span className="opportunities-count">
+                {items.length} предложений
+              </span>
+            </summary>
             <p>
               Сохраняй интересные предложения и отслеживай их статус. Оценка
               совпадения учитывает навыки и услуги из профиля, тип и свежесть
               предложения. Финансовая оценка отдельно учитывает достоверность
               бюджета, валюту и период оплаты.
             </p>
-          </div>
-          <span className="opportunities-count">{items.length} в подборке</span>
+          </details>
         </div>
 
         {stateError ? (
@@ -201,8 +204,8 @@ export default async function OpportunitiesPage() {
               opportunities={items}
               emptyBecauseRemoteOnly={Boolean(
                 preferences?.remote_only &&
-                  opportunities.length &&
-                  !eligibleOpportunities.length,
+                opportunities.length &&
+                !eligibleOpportunities.length,
               )}
             />
             {scoreError && (
@@ -215,9 +218,8 @@ export default async function OpportunitiesPage() {
         )}
 
         <p className="opportunities-note">
-          <Sparkles size={14} /> Подключённые источники и время обновления — в
-          разделе «Источники». Оценки объясняют совпадения с профилем и не
-          гарантируют получение работы.
+          Оригинал публикации доступен в каждой карточке. Оценка показывает
+          совпадения с профилем и не гарантирует получение работы.
         </p>
       </section>
     </main>

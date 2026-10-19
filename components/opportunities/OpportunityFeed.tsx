@@ -399,7 +399,7 @@ export function OpportunityFeed({
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Поиск по названию, компании или описанию"
+            placeholder="Поиск заданий"
             aria-label="Поиск возможностей"
           />
         </label>
@@ -562,7 +562,7 @@ export function OpportunityFeed({
             {emptyBecauseRemoteOnly
               ? "В профиле выбран только удалённый формат. В текущей подборке есть задания, но у них этот формат не указан. Измени предпочтение или вернись позже."
               : opportunities.length === 0
-                ? "В ленте пока нет активных предложений. Проверь подключённые источники или вернись позже."
+                ? "В ленте пока нет активных предложений. Новые задания появятся после обновления подборки. Вернись позже."
                 : "Измени запрос или фильтры. Сохранённые предложения появятся здесь после добавления."}
           </p>
           {emptyBecauseRemoteOnly && (
@@ -623,7 +623,28 @@ export function OpportunityFeed({
                   )}
                 </h3>
                 {descriptionText && (
-                  <p className="opportunity-description">{descriptionText}</p>
+                  <div className="opportunity-description-wrap">
+                    <p className="opportunity-description">
+                      {descriptionText.slice(0, 190)}
+                      {descriptionText.length > 190 ? "…" : ""}
+                    </p>
+                    {descriptionText.length > 190 && (
+                      <details className="opportunity-full-description">
+                        <summary>Полное описание</summary>
+                        <p>{descriptionText}</p>
+                      </details>
+                    )}
+                  </div>
+                )}
+                {item.matched_keywords.length > 0 && (
+                  <div
+                    className="opportunity-skill-preview"
+                    aria-label="Совпавшие навыки"
+                  >
+                    {item.matched_keywords.slice(0, 3).map((keyword) => (
+                      <span key={keyword}>{readableScoreText(keyword)}</span>
+                    ))}
+                  </div>
                 )}
                 <div className="opportunity-meta">
                   <span>
@@ -706,6 +727,13 @@ export function OpportunityFeed({
                         ? "Не рассчитан"
                         : `${item.match_score}/100`}
                     </strong>
+                    <span className="match-track" aria-hidden="true">
+                      <i
+                        style={{
+                          width: `${Math.min(100, Math.max(0, item.match_score || 0))}%`,
+                        }}
+                      />
+                    </span>
                   </div>
                   <div className="score">
                     <span>Соответствие</span>

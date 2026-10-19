@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { Radio, Rss, Send, ArrowUpRight, ShieldCheck } from "lucide-react";
 import { getAccount } from "@/lib/workspace";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -12,6 +13,12 @@ import { parseTelegramChannelRules } from "@/lib/telegram-channel-rules";
 export const dynamic = "force-dynamic";
 export default async function SourcesPage() {
   const account = await getAccount();
+  // Operations belong to deployment owners; a server key is not user authorization.
+  const operators = (process.env.LEADLY_OPERATOR_USER_IDS || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  if (!account || !operators.includes(account.user.id)) notFound();
   const feeds = !!process.env.LEADLY_RSS_FEEDS?.trim();
   const fh = !!process.env.FREELANCEHUNT_API_TOKEN;
   let channelCount = 0;

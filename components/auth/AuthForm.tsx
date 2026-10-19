@@ -1,19 +1,14 @@
 "use client";
+import { MotionToggle } from "@/components/brand/MotionToggle";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Eye,
-  EyeOff,
-  LoaderCircle,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { SocialAuth } from "./SocialAuth";
 import { socialAuthCatalog, type SocialAuthOption } from "@/lib/auth-providers";
 import { LeadlyLogo } from "@/components/brand/LeadlyLogo";
+import { PRIVACY_NOTICE_VERSION } from "@/lib/privacy";
 import { AuthStory } from "@/components/brand/AuthStory";
 
 type Mode = "signin" | "signup" | "recovery";
@@ -27,11 +22,11 @@ export function AuthForm({
   socialOptions?: SocialAuthOption[];
   socialError?: string;
 }) {
-  const router = useRouter();
   const [mode, setMode] = useState<Mode>("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -44,6 +39,10 @@ export function AuthForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (mode === "signup" && !privacyAccepted) {
+      setError("Ознакомься с условиями обработки данных перед регистрацией.");
+      return;
+    }
     setBusy(true);
     setMessage("");
     setError("");
@@ -67,7 +66,11 @@ export function AuthForm({
           email: email.trim(),
           password,
           options: {
-            data: { display_name: name.trim() },
+            data: {
+              display_name: name.trim(),
+              privacy_notice_version: PRIVACY_NOTICE_VERSION,
+              privacy_notice_acknowledged_at: new Date().toISOString(),
+            },
             emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
@@ -79,16 +82,18 @@ export function AuthForm({
           setMode("signin");
           return;
         }
-        router.replace("/onboarding");
-        router.refresh();
+        // A new identity needs a fresh router cache; public-page prefetches may
+        // otherwise reuse a guest redirect after a successful sign-in.
+        window.location.replace("/welcome");
       } else {
         const { error: authError } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         });
         if (authError) throw authError;
-        router.replace("/onboarding");
-        router.refresh();
+        // A new identity needs a fresh router cache; public-page prefetches may
+        // otherwise reuse a guest redirect after a successful sign-in.
+        window.location.replace("/welcome");
       }
     } catch (caught) {
       setError(
@@ -105,17 +110,14 @@ export function AuthForm({
     <main className="auth-shell">
       <header className="auth-header">
         <LeadlyLogo href="/" />
-        <span className="auth-header-note">
-          <ShieldCheck size={15} /> Твой рабочий кабинет
-        </span>
+        <MotionToggle />
       </header>
       <div className="auth-layout">
         <AuthStory />
         <section className="auth-card">
-          <div className="auth-kicker">ТВОЁ ЛИЧНОЕ ПРОСТРАНСТВО</div>
           <h1 key={`title-${mode}`} className="auth-mode-content">
             {mode === "signup"
-              ? "Найди своё следующее."
+              ? "Начнём знакомство."
               : mode === "recovery"
                 ? "Вернём доступ."
                 : "С возвращением."}
@@ -125,7 +127,7 @@ export function AuthForm({
             className="auth-subtitle auth-mode-content"
           >
             {mode === "signup"
-              ? "Создай аккаунт — настроим LEADLY под твои навыки и цели."
+              ? "Создай аккаунт, чтобы находить заказы и вести проекты."
               : mode === "recovery"
                 ? "Укажи email аккаунта — пришлём ссылку для смены пароля."
                 : "Войди, чтобы продолжить работу с возможностями."}
@@ -219,6 +221,32 @@ export function AuthForm({
                 </div>
               </label>
             )}
+            {mode === "signup" && (
+              <div className="registration-consent">
+                <label className="consent-control">
+                  <input
+                    type="checkbox"
+                    checked={privacyAccepted}
+                    onChange={(event) =>
+                      setPrivacyAccepted(event.target.checked)
+                    }
+                    required
+                    aria-label="Я ознакомился с условиями обработки персональных данных"
+                  />
+                  <span>
+                    Я ознакомился с{" "}
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      условиями обработки персональных данных
+                    </Link>
+                    .
+                  </span>
+                </label>
+              </div>
+            )}
             {error && (
               <p className="auth-message error" role="alert">
                 {error}
@@ -258,19 +286,17 @@ export function AuthForm({
             >
               {mode === "recovery" ? "Вернуться ко входу" : "Забыли пароль?"}
             </button>
-            <Link className="text-link" href="/demo">
-              Посмотреть демо <ArrowRight size={14} />
-            </Link>
           </div>
           {mode !== "recovery" && <SocialAuth options={socialOptions} />}
           <p className="auth-legal">
-            Продолжая, ты создаёшь личный аккаунт LEADLY. Не указывай пароль от
-            других сервисов.
+            Только необходимые cookies для входа. Без рекламного отслеживания.{" "}
+            <Link href="/privacy#cookies">Подробнее</Link>
           </p>
         </section>
       </div>
       <footer className="auth-footer">
-        LEADLY <span>·</span> Возможности становятся делом
+        <span>© {new Date().getFullYear()} LEADLY</span>
+        <Link href="/privacy">Конфиденциальность</Link>
       </footer>
     </main>
   );

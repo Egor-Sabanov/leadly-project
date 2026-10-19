@@ -1,8 +1,18 @@
 import Link from "next/link";
-import { CodeXml, ArrowUpRight } from "lucide-react";
 import type { SocialAuthOption } from "@/lib/auth-providers";
 function ProviderIcon({ id }: { id: SocialAuthOption["id"] }) {
-  if (id === "github") return <CodeXml size={21} aria-hidden="true" />;
+  if (id === "github")
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        width="21"
+        height="21"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.4.7-4.1-1.4-4.1-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.8.1-.8.1-.8 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.4-5.5-6A4.7 4.7 0 0 1 5.3 8.3a4.4 4.4 0 0 1 .1-3.2s1-.3 3.3 1.2a11.3 11.3 0 0 1 6.6 0c2.3-1.5 3.3-1.2 3.3-1.2a4.4 4.4 0 0 1 .1 3.2 4.7 4.7 0 0 1 1.2 3.3c0 4.6-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z" />
+      </svg>
+    );
   if (id === "google")
     return (
       <svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true">
@@ -32,10 +42,10 @@ export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
               key={o.id}
               href={`/auth/social/${o.id}`}
               className="social-auth-button"
+              aria-label={`Войти через ${o.label}`}
+              title={o.label}
             >
               <ProviderIcon id={o.id} />
-              <span>{o.label}</span>
-              <ArrowUpRight size={15} />
             </Link>
           ) : (
             <button
@@ -43,11 +53,11 @@ export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
               type="button"
               className="social-auth-button"
               disabled
+              aria-label={`${o.label} — пока недоступен`}
+              title={`${o.label} — пока недоступен`}
               aria-describedby="social-auth-status"
             >
               <ProviderIcon id={o.id} />
-              <span>{o.label}</span>
-              <span className="social-status">Не подключён</span>
             </button>
           ),
         )}
@@ -55,7 +65,7 @@ export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
       <p id="social-auth-status" className="social-auth-note">
         {active
           ? "Выбери сервис для безопасного входа. Пароль от него остаётся у провайдера."
-          : "Вход через сервисы пока не подключён владельцем приложения."}
+          : "Пока доступен вход по почте. Другие способы появятся позже."}
       </p>
     </section>
   );

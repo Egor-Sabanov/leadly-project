@@ -1,10 +1,10 @@
-import { Sparkles } from "lucide-react";
+import { PencilLine } from "lucide-react";
 import { dashboardSkills } from "@/lib/dashboard-data";
 
 export function ProfilePanel() {
   return (
     <section className="panel">
-      <div className="panel-title"><div><div className="eyebrow">AI-ПРОФИЛЬ</div><h2>Твоя сила</h2></div><Sparkles size={18} aria-hidden="true" /></div>
+      <div className="panel-title"><div><div className="eyebrow">ПРОФИЛЬ</div><h2>Твоя сила</h2></div><PencilLine size={18} aria-hidden="true" /></div>
       <div className="skills">
         {dashboardSkills.map((skill) => <span key={skill}>{skill}</span>)}
       </div>

@@ -1,11 +1,11 @@
-import { ArrowUpRight, Check, Sparkles } from "lucide-react";
+import { ArrowUpRight, Check, PencilLine } from "lucide-react";
 
 export function AiRecommendation() {
   return (
     <aside className="ai-card">
       <div className="ai-head">
-        <div className="ai-orb"><Sparkles size={20} aria-hidden="true" /></div>
-        <div><span className="eyebrow">LEADLY AI</span><h3>Что сделать сейчас?</h3></div>
+        <div className="ai-orb"><PencilLine size={20} aria-hidden="true" /></div>
+        <div><span className="eyebrow">LEADLY</span><h3>Что сделать сейчас?</h3></div>
       </div>
       <p>У тебя есть возможность с высокой вероятностью ответа. Она хорошо совпадает с твоим опытом и портфолио.</p>
       <div className="recommend">
