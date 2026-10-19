@@ -220,8 +220,12 @@ test("social providers are visible and unavailable ones fail closed without cred
 
 test("profession filter finds video, sound, translations and assistance without development", async ({
   page,
+  isMobile,
 }) => {
   await page.goto("/demo");
+  if (isMobile) {
+    await page.getByRole("button", { name: "Фильтры", exact: true }).click();
+  }
   const select = page.getByRole("combobox", { name: "Направление заданий" });
   for (const [id, title] of [
     ["video", "Монтаж Reels"],

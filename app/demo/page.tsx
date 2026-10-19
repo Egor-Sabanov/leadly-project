@@ -149,9 +149,9 @@ export default function DemoPage() {
       <Sidebar activeHref="/opportunities" />
       <section className="content">
         <PageHeader
-          eyebrow="ПОСМОТРИ, КАК ЭТО РАБОТАЕТ"
-          title="Твой фокус. Твои возможности."
-          description="Выбери специализацию и посмотри, как меняется персональная оценка."
+          eyebrow="ЗНАКОМСТВО С LEADLY"
+          title="Возможности для тебя"
+          description="Посмотри, как твои навыки помогают найти подходящий проект."
           action={
             <Link href="/auth" className="ghost">
               Создать аккаунт <ArrowUpRight size={15} />
@@ -161,32 +161,32 @@ export default function DemoPage() {
         <div className="demo-banner">
           <p>
             <strong>Демонстрационное пространство.</strong>
-            <br />
             <span>
-              Примеры вымышлены. Изменения действуют до обновления страницы и не
-              записываются в базу.
+              Вымышленные задания. Изменения сохраняются только до обновления
+              страницы.
             </span>
           </p>
           <span className="badge">БЕЗ РЕГИСТРАЦИИ</span>
         </div>
-        <div className="welcome-hero">
-          <span className="badge">ДЛЯ DIGITAL-СПЕЦИАЛИСТОВ</span>
-          <h2>
-            Твоя экспертиза.
-            <br />
-            Новые перспективы.
-          </h2>
-          <p>
-            Одна лента — разные точки приложения твоих навыков. LEADLY объясняет
-            совпадения, чтобы ты мог выбрать осознанно.
-          </p>
+        <section className="demo-focus">
+          <div className="demo-focus-heading">
+            <div>
+              <h2>В чём твоя сила?</h2>
+              <p>Выбери направление, чтобы примерить подборку под себя.</p>
+            </div>
+            <span className="demo-focus-current">
+              {specializations[profile].label}
+            </span>
+          </div>
           <div
-            style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 25 }}
+            className="demo-profession-tabs"
+            role="group"
+            aria-label="Профессия для демонстрации"
           >
             {specializations.map((s, i) => (
               <button
                 key={s.label}
-                className={i === profile ? "primary" : "ghost"}
+                className={`profession-tab ${i === profile ? "selected" : ""}`}
                 aria-pressed={i === profile}
                 onClick={() => setProfile(i)}
               >
@@ -195,7 +195,7 @@ export default function DemoPage() {
               </button>
             ))}
           </div>
-        </div>
+        </section>
         <OpportunityFeed opportunities={items} demo />
         <footer className="footer-note">
           <span>LEADLY · Демонстрация интерфейса</span>

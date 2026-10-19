@@ -269,13 +269,23 @@ export default function ProfilePage() {
           </div>
         </header>
 
+        <nav className="profile-section-nav" aria-label="Разделы профиля">
+          <a href="#about">О тебе</a>
+          <a href="#goals">Цели и поиск</a>
+          <a href="#preferences">Предпочтения</a>
+          <a href="#plans">Тарифы</a>
+        </nav>
+
         {loading ? (
           <div className="panel profile-loading">
             <LoaderCircle size={22} className="spin" /> Загружаем профиль…
           </div>
         ) : (
-          <form className="profile-form" onSubmit={saveProfile}>
-            <section className="panel profile-section">
+          <form
+            className="profile-form profile-settings-grid"
+            onSubmit={saveProfile}
+          >
+            <section className="panel profile-section" id="about">
               <div className="profile-section-heading">
                 <span className="onboarding-icon">
                   <UserRound size={20} />
@@ -330,7 +340,7 @@ export default function ProfilePage() {
               </label>
             </section>
 
-            <section className="panel profile-section">
+            <section className="panel profile-section" id="goals">
               <div className="profile-section-heading">
                 <span className="onboarding-icon">
                   <Target size={20} />
@@ -396,7 +406,7 @@ export default function ProfilePage() {
               </label>
             </section>
 
-            <section className="panel profile-section">
+            <section className="panel profile-section" id="preferences">
               <div className="profile-section-heading">
                 <span className="onboarding-icon">
                   <Sparkles size={20} />
@@ -447,7 +457,7 @@ export default function ProfilePage() {
               </p>
             )}
             <div className="profile-save-row">
-              <span>Изменения сохраняются в твоём аккаунте Supabase.</span>
+              <span>Твои настройки помогут точнее подобрать возможности.</span>
               <button
                 className="auth-submit profile-save"
                 type="submit"

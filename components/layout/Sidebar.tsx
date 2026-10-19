@@ -56,21 +56,27 @@ export function Sidebar({ activeHref = "/" }: { activeHref?: string }) {
         <div className="sidebar-brand">
           <LeadlyLogo />
         </div>
-        <span className="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</span>
+        <span className="nav-caption">РАБОТА</span>
         <nav className="sidebar-nav" aria-label="Основная навигация">
-          {mainNavigation.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href as Route}
-              title={label}
-              className={`nav-item ${activeHref === href ? "active" : ""}`}
-              aria-current={activeHref === href ? "page" : undefined}
-              onClick={() => setOpen(false)}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-              {activeHref === href && <span className="nav-active-dot" />}
-            </Link>
+          {mainNavigation.map(({ href, label, icon: Icon }, index) => (
+            <div key={href}>
+              {index === 5 && (
+                <span className="nav-caption nav-group-caption">
+                  УПРАВЛЕНИЕ
+                </span>
+              )}
+              <Link
+                href={href as Route}
+                title={label}
+                className={`nav-item ${activeHref === href ? "active" : ""}`}
+                aria-current={activeHref === href ? "page" : undefined}
+                onClick={() => setOpen(false)}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+                {activeHref === href && <span className="nav-active-dot" />}
+              </Link>
+            </div>
           ))}
         </nav>
         <nav
@@ -93,7 +99,7 @@ export function Sidebar({ activeHref = "/" }: { activeHref?: string }) {
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-signature">
-            LEADLY <span>Твоё рабочее пространство</span>
+            В твоём темпе.<span>От возможности к результату.</span>
           </div>
         </div>
       </aside>

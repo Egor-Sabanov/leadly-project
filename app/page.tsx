@@ -88,38 +88,55 @@ export default async function Home() {
         />
         {errors && <QueryError message={errors.message} />}{" "}
         {financial.error && <QueryError message={financial.error.message} />}
-        <section className="welcome-hero">
-          <span className="badge">ТВОЙ СЛЕДУЮЩИЙ ШАГ</span>
-          <h2>
-            Работа, в которой
-            <br />
-            есть твоя ценность.
-          </h2>
-          <p>
-            Подходящие проекты и вакансии, понятная оценка и личная воронка.
-            Всё, чтобы тратить время на возможности с перспективой.
-          </p>
-          <div className="hero-bottom">
+        <section className="welcome-hero dashboard-focus">
+          <div className="focus-copy">
+            <span className="eyebrow">ТВОЙ СЛЕДУЮЩИЙ ШАГ</span>
+            <h2>
+              Найди проект,
+              <br />в котором ты сильнее.
+            </h2>
+            <p>
+              Твои навыки заслуживают подходящих возможностей. Посмотри подборку
+              и выбери, с чего начать.
+            </p>
             <Link className="primary" href="/opportunities">
               Найти возможность <ArrowUpRight size={17} />
             </Link>
-            <div className="hero-target">
-              <span>Твоя цель на месяц</span>
-              <strong>
-                {target > 0
-                  ? formatMoney(target, p?.currency_code || "RUB")
-                  : "Задай свою цель"}
-              </strong>
-              <Link href="/profile">Настроить профиль ↗</Link>
+          </div>
+          <div className="focus-goal">
+            <span className="eyebrow">ЦЕЛЬ МЕСЯЦА</span>
+            <strong>
+              {target > 0
+                ? formatMoney(target, p?.currency_code || "RUB")
+                : "Задай свою цель"}
+            </strong>
+            <p>
+              {formatMoney(income, p?.currency_code || "RUB")} учтено в финансах
+            </p>
+            <div
+              className="progress"
+              role="progressbar"
+              aria-label="Прогресс месячной цели"
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <i style={{ width: `${progress}%` }} />
+            </div>
+            <div className="focus-goal-footer">
+              <span>{progress}% от цели</span>
+              <Link href="/profile">
+                Настроить <ArrowUpRight size={14} />
+              </Link>
             </div>
           </div>
         </section>
         <div className="stats">
           {[
             {
-              label: "Русскоязычных возможностей",
+              label: "Возможности",
               value: offers.error ? "—" : offers.data.length,
-              note: "В текущей выборке · до 100",
+              note: "Русскоязычная подборка · до 100",
               icon: Search,
             },
             {
@@ -135,7 +152,7 @@ export default async function Home() {
               icon: Send,
             },
             {
-              label: "Успешных возможностей",
+              label: "Результаты",
               value: rows.filter((r) => r.status === "won").length,
               note: "Твои достигнутые результаты",
               icon: Target,
@@ -224,24 +241,6 @@ export default async function Home() {
                 </Link>
               </div>
             )}
-            <div className="section-heading">
-              <h3>Цель месяца</h3>
-              <span className="muted">{progress}%</span>
-            </div>
-            <div
-              className="progress"
-              role="progressbar"
-              aria-label="Прогресс месячной цели"
-              aria-valuenow={progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <i style={{ width: `${progress}%` }} />
-            </div>
-            <p className="muted" style={{ fontSize: 14, marginTop: 12 }}>
-              Учтено доходов: {formatMoney(income, p?.currency_code || "RUB")}.
-              Записи добавляются в разделе финансов.
-            </p>
           </section>
         </div>
         <footer className="footer-note">

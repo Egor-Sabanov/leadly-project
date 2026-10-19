@@ -1,7 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, UsersRound } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 export type ClientRecord = {
   id: string;
@@ -105,7 +105,7 @@ export function ClientBook({
     }
   }
   return (
-    <div className="two-col">
+    <div className="two-col client-book">
       <section className="panel">
         <h2>Твои контакты</h2>
         <label className="profile-label" style={{ marginBottom: 20 }}>
@@ -174,19 +174,27 @@ export function ClientBook({
             ))}
         </div>
         {items.length === 0 && (
-          <p className="muted">
-            Добавь первый контакт: компанию, потенциального заказчика или
-            действующего клиента.
-          </p>
+          <div className="empty-state compact-empty">
+            <span className="empty-icon">
+              <UsersRound size={22} />
+            </span>
+            <h3>Хорошая работа начинается со знакомства</h3>
+            <p>
+              Сохрани первый контакт. Здесь будут люди, договорённости и
+              следующие шаги.
+            </p>
+            <a href="#new-client-form" className="ghost">
+              <Plus size={15} /> Добавить контакт
+            </a>
+          </div>
         )}
       </section>
       <section className="panel">
         <h2>Новый контакт</h2>
         <p className="muted">
-          Записывай только контакты, полученные с разрешения или из разрешённых
-          публичных источников.
+          Заказчик, компания или человек, с которым хочешь работать.
         </p>
-        <form className="profile-form" onSubmit={add}>
+        <form className="profile-form" id="new-client-form" onSubmit={add}>
           <label className="profile-label">
             Имя или компания
             <input

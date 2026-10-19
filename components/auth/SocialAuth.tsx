@@ -22,6 +22,9 @@ export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
   const active = options.some((o) => o.enabled);
   return (
     <section className="social-auth" aria-label="Вход через сервисы">
+      <div className="auth-divider">
+        <span>Другие способы входа</span>
+      </div>
       <div className="social-auth-grid">
         {options.map((o) =>
           o.enabled ? (
@@ -54,9 +57,6 @@ export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
           ? "Выбери сервис для безопасного входа. Пароль от него остаётся у провайдера."
           : "Вход через сервисы пока не подключён владельцем приложения."}
       </p>
-      <div className="auth-divider">
-        <span>или по электронной почте</span>
-      </div>
     </section>
   );
 }

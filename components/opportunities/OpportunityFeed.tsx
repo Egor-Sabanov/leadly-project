@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { isRussianOpportunity } from "@/lib/opportunity-language";
 import { disciplines, opportunityDisciplines } from "@/lib/disciplines";
@@ -220,6 +220,8 @@ export function OpportunityFeed({
   );
   const [savedOnly, setSavedOnly] = useState(false);
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const filtersId = useId();
   const [saved, setSaved] = useState(
     () =>
       new Set(
@@ -401,116 +403,121 @@ export function OpportunityFeed({
             aria-label="Поиск возможностей"
           />
         </label>
-        <label className="opportunity-type-filter direction-filter">
-          <span className="sr-only">Направление заданий</span>
-          <select
-            aria-label="Направление заданий"
-            value={discipline}
-            onChange={(e) => setDiscipline(e.target.value)}
-          >
-            <option value="all">Все направления</option>
-            {disciplines.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div
-          className={`opportunity-type-filter custom-type-filter ${typeMenuOpen ? "is-open" : ""}`}
+        <button
+          className="ghost filters-toggle"
+          type="button"
+          aria-expanded={filtersExpanded}
+          aria-controls={filtersId}
+          onClick={() => setFiltersExpanded((value) => !value)}
         >
-          <SlidersHorizontal size={16} aria-hidden="true" />
-          <button
-            className="type-filter-trigger"
-            type="button"
-            aria-label="Тип возможности"
-            aria-haspopup="listbox"
-            aria-expanded={typeMenuOpen}
-            onClick={() => setTypeMenuOpen((open) => !open)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") setTypeMenuOpen(false);
-            }}
-          >
-            <span>{selectedTypeLabel}</span>
-            <ChevronDown
-              size={16}
-              className="type-filter-chevron"
-              aria-hidden="true"
+          <SlidersHorizontal size={16} /> Фильтры
+          {(discipline !== "all" || type !== "all") && (
+            <span
+              className="filter-active-dot"
+              aria-label="Есть выбранные фильтры"
             />
-          </button>
-          {typeMenuOpen && (
-            <>
-              <button
-                className="type-filter-dismiss"
-                type="button"
-                aria-label="Закрыть список типов"
-                onClick={() => setTypeMenuOpen(false)}
-                tabIndex={-1}
-              />
-              <div
-                className="type-filter-menu"
-                role="listbox"
-                aria-label="Тип возможности"
-              >
-                {[
-                  ["all", "Заказы и вакансии"],
-                  ["freelance", "Фриланс"],
-                  ["project", "Проекты"],
-                  ["client", "Клиенты"],
-                  ["job", "Вакансии"],
-                  ["other", "Не классифицировано"],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    role="option"
-                    aria-selected={type === value}
-                    className={`type-filter-option ${type === value ? "active" : ""}`}
-                    onClick={() => {
-                      setType(value);
-                      setTypeMenuOpen(false);
-                    }}
-                  >
-                    <span>{label}</span>
-                    {type === value && <Check size={15} aria-hidden="true" />}
-                  </button>
-                ))}
-              </div>
-            </>
           )}
-        </div>
-        <label
-          className="opportunity-type-filter"
-          style={{ flex: "0 1 230px" }}
+        </button>
+        <div
+          className={`filters-advanced ${filtersExpanded ? "is-expanded" : ""}`}
+          id={filtersId}
         >
-          <SlidersHorizontal size={16} aria-hidden="true" />
-          <span className="sr-only">Сортировка возможностей</span>
-          <select
-            aria-label="Сортировка возможностей"
-            value={sortMode}
-            onChange={(event) =>
-              setSortMode(
-                event.target.value as "relevance" | "match" | "newest",
-              )
-            }
-            style={{
-              flex: 1,
-              minWidth: 0,
-              minHeight: 40,
-              border: 0,
-              outline: 0,
-              background: "transparent",
-              color: "var(--text)",
-              font: "inherit",
-              fontSize: 14,
-              fontWeight: 700,
-            }}
+          <label className="opportunity-type-filter direction-filter">
+            <span className="sr-only">Направление заданий</span>
+            <select
+              aria-label="Направление заданий"
+              value={discipline}
+              onChange={(e) => setDiscipline(e.target.value)}
+            >
+              <option value="all">Все направления</option>
+              {disciplines.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div
+            className={`opportunity-type-filter custom-type-filter ${typeMenuOpen ? "is-open" : ""}`}
           >
-            <option value="relevance">По соответствию профилю</option>
-            <option value="match">По совпадению</option>
-            <option value="newest">Сначала новые</option>
-          </select>
-        </label>
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            <button
+              className="type-filter-trigger"
+              type="button"
+              aria-label="Тип возможности"
+              aria-haspopup="listbox"
+              aria-expanded={typeMenuOpen}
+              onClick={() => setTypeMenuOpen((open) => !open)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setTypeMenuOpen(false);
+              }}
+            >
+              <span>{selectedTypeLabel}</span>
+              <ChevronDown
+                size={16}
+                className="type-filter-chevron"
+                aria-hidden="true"
+              />
+            </button>
+            {typeMenuOpen && (
+              <>
+                <button
+                  className="type-filter-dismiss"
+                  type="button"
+                  aria-label="Закрыть список типов"
+                  onClick={() => setTypeMenuOpen(false)}
+                  tabIndex={-1}
+                />
+                <div
+                  className="type-filter-menu"
+                  role="listbox"
+                  aria-label="Тип возможности"
+                >
+                  {[
+                    ["all", "Заказы и вакансии"],
+                    ["freelance", "Фриланс"],
+                    ["project", "Проекты"],
+                    ["client", "Клиенты"],
+                    ["job", "Вакансии"],
+                    ["other", "Не классифицировано"],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="option"
+                      aria-selected={type === value}
+                      className={`type-filter-option ${type === value ? "active" : ""}`}
+                      onClick={() => {
+                        setType(value);
+                        setTypeMenuOpen(false);
+                      }}
+                    >
+                      <span>{label}</span>
+                      {type === value && <Check size={15} aria-hidden="true" />}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <label className="opportunity-type-filter sort-filter">
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            <span className="sr-only">Сортировка возможностей</span>
+            <select
+              aria-label="Сортировка возможностей"
+              value={sortMode}
+              onChange={(event) =>
+                setSortMode(
+                  event.target.value as "relevance" | "match" | "newest",
+                )
+              }
+            >
+              <option value="relevance">Лучше подходят</option>
+              <option value="match">По совпадению</option>
+              <option value="newest">Сначала новые</option>
+            </select>
+          </label>
+        </div>
         <button
           className={`secondary ${savedOnly ? "selected" : ""}`}
           type="button"
@@ -522,14 +529,9 @@ export function OpportunityFeed({
       </div>
 
       {type === "all" && (
-        <p
-          className="client"
-          role="note"
-          style={{ margin: "0 0 14px", color: "var(--muted)", lineHeight: 1.5 }}
-        >
-          Основная лента показывает заказы, клиентские проекты и вакансии.
-          Публикации, где фрилансер сам предлагает услуги, и записи без ясного
-          типа доступны отдельно в фильтре.
+        <p className="feed-scope-note" role="note">
+          Заказы, проекты и вакансии. Предложения услуг доступны в фильтре
+          типов.
         </p>
       )}
 
@@ -538,6 +540,11 @@ export function OpportunityFeed({
           {message}
         </p>
       )}
+
+      <div className="feed-heading">
+        <h2>{demo ? "Примеры возможностей" : "Подходящие предложения"}</h2>
+        <span>Найдено: {filtered.length}</span>
+      </div>
 
       {filtered.length === 0 ? (
         <div className="panel opportunity-empty">
@@ -727,53 +734,60 @@ export function OpportunityFeed({
                     </strong>
                   </div>
                 </div>
-                <p
-                  className="client"
-                  style={{
-                    margin: "10px 0 0",
-                    color: "var(--muted)",
-                    lineHeight: 1.6,
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {item.matched_keywords.length > 0
-                    ? `Совпавшие навыки: ${item.matched_keywords.map(readableScoreText).join(", ")}`
-                    : "Совпадения по конкретным навыкам из профиля не найдены."}
-                </p>
-                {evidenceReason && (
-                  <p
-                    className="client"
-                    style={{
-                      margin: "5px 0 0",
-                      color: "var(--muted)",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {readableScoreText(evidenceReason)}
-                  </p>
-                )}
-                {relevanceCaution && (
-                  <p
-                    role="note"
-                    className="client"
-                    style={{
-                      margin: "5px 0 0",
-                      color: "var(--muted)",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {relevanceCaution}
-                  </p>
-                )}
-                {!moneyComparable && (
-                  <p
-                    className="money-score-note"
-                    role="note"
-                    title={moneyStatusDetail}
-                  >
-                    {moneyStatusDetail}
-                  </p>
-                )}
+                <details className="opportunity-explanation">
+                  <summary>
+                    Как рассчитана оценка <ChevronDown size={14} />
+                  </summary>
+                  <div className="opportunity-explanation-body">
+                    <p
+                      className="client"
+                      style={{
+                        margin: "10px 0 0",
+                        color: "var(--muted)",
+                        lineHeight: 1.6,
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      {item.matched_keywords.length > 0
+                        ? `Совпавшие навыки: ${item.matched_keywords.map(readableScoreText).join(", ")}`
+                        : "Совпадения по конкретным навыкам из профиля не найдены."}
+                    </p>
+                    {evidenceReason && (
+                      <p
+                        className="client"
+                        style={{
+                          margin: "5px 0 0",
+                          color: "var(--muted)",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        {readableScoreText(evidenceReason)}
+                      </p>
+                    )}
+                    {relevanceCaution && (
+                      <p
+                        role="note"
+                        className="client"
+                        style={{
+                          margin: "5px 0 0",
+                          color: "var(--muted)",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        {relevanceCaution}
+                      </p>
+                    )}
+                    {!moneyComparable && (
+                      <p
+                        className="money-score-note"
+                        role="note"
+                        title={moneyStatusDetail}
+                      >
+                        {moneyStatusDetail}
+                      </p>
+                    )}
+                  </div>
+                </details>
                 <div className="opp-actions">
                   <label className="opportunity-status-control">
                     <History size={15} aria-hidden="true" />
@@ -819,7 +833,7 @@ export function OpportunityFeed({
                       </Link>
                     )}
                     <a
-                      className="primary opportunity-external"
+                      className="ghost opportunity-external"
                       href={safeSourceUrl(item.source_url) || undefined}
                       target="_blank"
                       rel="noopener noreferrer"

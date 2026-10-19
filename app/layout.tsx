@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/golos-text";
 import "./globals.css";
+import "./design-system.css";
 
 export const metadata: Metadata = {
   title: "LEADLY — Возможности для заработка",

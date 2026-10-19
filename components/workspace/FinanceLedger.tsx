@@ -1,7 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Download } from "lucide-react";
+import { Plus, Trash2, Download, WalletCards } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 export type Transaction = {
   id: string;
@@ -119,7 +119,7 @@ export function FinanceLedger({
           </div>
         ))}
       </div>
-      <div className="two-col">
+      <div className="two-col finance-layout">
         <section className="panel">
           <div className="section-heading" style={{ marginTop: 0 }}>
             <h2>Журнал операций</h2>
@@ -194,14 +194,24 @@ export function FinanceLedger({
             </table>
           </div>
           {!visible.length && (
-            <p className="muted" style={{ marginTop: 20 }}>
-              Записей в этой валюте пока нет. Добавь первый доход или расход.
-            </p>
+            <div className="empty-state compact-empty">
+              <span className="empty-icon">
+                <WalletCards size={22} />
+              </span>
+              <h3>Результат начинается с первой записи</h3>
+              <p>
+                В этой валюте пока нет операций. Добавь доход или расход, чтобы
+                увидеть картину целиком.
+              </p>
+              <a href="#new-finance-entry" className="ghost">
+                <Plus size={15} /> Добавить запись
+              </a>
+            </div>
           )}
         </section>
         <section className="panel">
           <h2>Новая запись</h2>
-          <form className="finance-form" onSubmit={add}>
+          <form className="finance-form" id="new-finance-entry" onSubmit={add}>
             <label className="profile-label">
               Тип
               <select value={type} onChange={(e) => setType(e.target.value)}>

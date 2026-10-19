@@ -291,7 +291,7 @@ export default function AiOutreachPage() {
             <LoaderCircle size={22} className="spin" /> Загружаем данные…
           </div>
         ) : (
-          <div className="profile-form">
+          <div className="profile-form outreach-workspace">
             <section className="panel profile-section">
               <div className="profile-section-heading">
                 <span className="onboarding-icon">
