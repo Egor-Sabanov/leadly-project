@@ -20,8 +20,12 @@ async function access(request: Request, mutation = false) {
   if (!key)
     return {
       error: NextResponse.json(
-        { error: "Загрузка аватарок пока недоступна. Попробуй позже." },
-        { status: 503 },
+        {
+          error:
+            "Фото профиля сейчас недоступно. Остальные настройки можно сохранить.",
+          code: "avatar_not_configured",
+        },
+        { status: 503, headers: { "Cache-Control": "private, no-store" } },
       ),
       account: null,
       admin: null,
@@ -31,6 +35,10 @@ async function access(request: Request, mutation = false) {
     account: auth.account!,
     admin: createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
       auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: (input, init) =>
+          fetch(input, { ...init, signal: AbortSignal.timeout(15000) }),
+      },
     }),
   };
 }

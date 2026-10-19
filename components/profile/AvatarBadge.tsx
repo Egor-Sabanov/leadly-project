@@ -1,9 +1,15 @@
 "use client";
 import Image from "next/image";
 import { useState } from "react";
-export function AvatarBadge({ url, name }: { url: string; name: string }) {
+export function AvatarBadge({
+  url = "",
+  name,
+}: {
+  url?: string;
+  name: string;
+}) {
   const [failedUrl, setFailedUrl] = useState("");
-  if (failedUrl === url)
+  if (!url || failedUrl === url)
     return (
       <span
         className="header-avatar header-avatar--fallback"

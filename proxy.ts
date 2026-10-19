@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { needsSocialPrivacyNotice } from "@/lib/privacy";
 /** Refresh cookie sessions in the response, where cookie writes are supported. */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -44,12 +45,14 @@ export async function proxy(request: NextRequest) {
       (path) => pathname === path || pathname.startsWith(`${path}/`),
     );
   let authenticated = false;
+  let noticeRequired = false;
   try {
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser();
     authenticated = !error && !!user;
+    noticeRequired = !!user && needsSocialPrivacyNotice(user);
   } catch {
     /* Public entry and privacy pages remain reachable on provider failure. */
   }
@@ -57,6 +60,16 @@ export async function proxy(request: NextRequest) {
     const login = NextResponse.redirect(new URL("/auth", request.url));
     for (const cookie of response.cookies.getAll()) login.cookies.set(cookie);
     return login;
+  }
+  if (
+    privatePage &&
+    authenticated &&
+    noticeRequired &&
+    pathname !== "/welcome"
+  ) {
+    const notice = NextResponse.redirect(new URL("/welcome", request.url));
+    for (const cookie of response.cookies.getAll()) notice.cookies.set(cookie);
+    return notice;
   }
   return response;
 }

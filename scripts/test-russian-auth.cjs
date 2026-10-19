@@ -146,6 +146,126 @@ tests.push(
     },
   ],
 );
+const { needsSocialPrivacyNotice, PRIVACY_NOTICE_VERSION } = load(
+  path.join(root, "lib/privacy.ts"),
+);
+tests.push(
+  [
+    "social newcomers must acknowledge the notice; email users retain their existing flow",
+    () => {
+      assert.equal(
+        needsSocialPrivacyNotice({ app_metadata: { provider: "google" } }),
+        true,
+      );
+      assert.equal(
+        needsSocialPrivacyNotice({
+          app_metadata: { provider: "email", providers: ["email", "github"] },
+        }),
+        true,
+      );
+      assert.equal(
+        needsSocialPrivacyNotice({ app_metadata: { provider: "email" } }),
+        false,
+      );
+      assert.equal(needsSocialPrivacyNotice({}), false);
+    },
+  ],
+  [
+    "outdated, missing or invalid social acknowledgement needs review",
+    () => {
+      for (const metadata of [
+        {},
+        { privacy_notice_version: "old" },
+        {
+          privacy_notice_version: PRIVACY_NOTICE_VERSION,
+          privacy_notice_acknowledged_at: "garbage",
+        },
+      ])
+        assert.equal(
+          needsSocialPrivacyNotice({
+            app_metadata: { provider: "google" },
+            user_metadata: metadata,
+          }),
+          true,
+        );
+      assert.equal(
+        needsSocialPrivacyNotice({
+          app_metadata: { provider: "google" },
+          user_metadata: {
+            privacy_notice_version: PRIVACY_NOTICE_VERSION,
+            privacy_notice_acknowledged_at: new Date().toISOString(),
+          },
+        }),
+        false,
+      );
+    },
+  ],
+  [
+    "privacy API rejects false and obsolete acknowledgements, stamps its own time and preserves identity",
+    async () => {
+      let saved;
+      const apiLoad = createTsLoader({
+        require: (id) =>
+          id === "@/lib/account-api"
+            ? {
+                accountApi: async () => ({
+                  account: {
+                    supabase: {
+                      auth: {
+                        updateUser: async (value) => {
+                          saved = value;
+                          return { error: null };
+                        },
+                      },
+                    },
+                  },
+                  error: null,
+                }),
+              }
+            : id.startsWith("@/")
+              ? load(path.join(root, id.slice(2) + ".ts"))
+              : require(id),
+      });
+      const { POST } = apiLoad(
+        path.join(root, "app/api/account/privacy/route.ts"),
+      );
+      for (const input of [
+        { accepted: false, version: PRIVACY_NOTICE_VERSION },
+        { accepted: true, version: "old" },
+        [],
+      ]) {
+        const result = await POST(
+          new Request("https://app.example/api/account/privacy", {
+            method: "POST",
+            body: JSON.stringify(input),
+          }),
+        );
+        assert.equal(result.status, 400);
+        assert.equal(saved, undefined);
+      }
+      const before = Date.now();
+      const result = await POST(
+        new Request("https://app.example/api/account/privacy", {
+          method: "POST",
+          body: JSON.stringify({
+            accepted: true,
+            version: PRIVACY_NOTICE_VERSION,
+            user_id: "other",
+            privacy_notice_acknowledged_at: "1900-01-01",
+          }),
+        }),
+      );
+      assert.equal(result.status, 200);
+      assert.equal(result.headers.get("cache-control"), "private, no-store");
+      assert.equal(saved.data.privacy_notice_version, PRIVACY_NOTICE_VERSION);
+      assert.ok(
+        Date.parse(saved.data.privacy_notice_acknowledged_at) >= before,
+      );
+      assert.equal(Object.keys(saved).join(","), "data");
+      assert.equal(Object.keys(saved.data).length, 2);
+    },
+  ],
+);
 let mockFetch = async () => {
   throw new Error("Unexpected network request in test");
 };

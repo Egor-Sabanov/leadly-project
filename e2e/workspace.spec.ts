@@ -1,6 +1,99 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+test.beforeEach(async ({ page }, testInfo) => {
+  if (!testInfo.title.includes("cookies"))
+    await page.addInitScript(() =>
+      localStorage.setItem("leadly-cookie-notice", "necessary-v1"),
+    );
+});
+
+test("cookies notice is readable, remembered and can be reopened without enabling tracking", async ({
+  page,
+}) => {
+  await page.goto("/auth");
+  const notice = page.getByRole("region", { name: "Использование cookies" });
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText(
+    "Рекламных cookies и сторонних трекеров у нас нет",
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
+  await notice.getByRole("button", { name: "Понятно", exact: true }).click();
+  await expect(notice).toHaveCount(0);
+  await page.reload();
+  await expect(notice).toHaveCount(0);
+  await page.goto("/privacy#cookies");
+  await page
+    .getByRole("button", { name: "Настройки cookies", exact: true })
+    .click();
+  await expect(notice).toBeVisible();
+  const result = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  expect(
+    result.violations.map((v) => ({
+      id: v.id,
+      targets: v.nodes.map((n) => n.target),
+    })),
+  ).toEqual([]);
+  await notice.getByRole("button", { name: "Понятно", exact: true }).click();
+  expect(
+    await page.evaluate(() =>
+      document.documentElement.style.getPropertyValue("--cookie-notice-space"),
+    ),
+  ).toBe("");
+});
+
+test("cookies notice still closes when local storage is unavailable", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", {
+      get() {
+        throw new DOMException("Blocked", "SecurityError");
+      },
+    });
+  });
+  await page.goto("/auth");
+  const notice = page.getByRole("region", { name: "Использование cookies" });
+  await expect(notice).toBeVisible();
+  await notice.getByRole("button", { name: "Понятно", exact: true }).click();
+  await expect(notice).toHaveCount(0);
+  await page.getByRole("tab", { name: "Вход", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "С возвращением." }),
+  ).toBeVisible();
+});
+
+test("dropdown keeps native keyboard selection and dark theme", async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto("/demo");
+  if (isMobile)
+    await page.getByRole("button", { name: "Фильтры", exact: true }).click();
+  const control = page.getByRole("combobox", { name: "Направление заданий" });
+  await control.focus();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  expect(await control.inputValue()).not.toBe("all");
+  expect(await control.evaluate((e) => getComputedStyle(e).colorScheme)).toBe(
+    "dark",
+  );
+  await control.selectOption("all");
+  await expect(page.locator(".opportunity-feed-card")).toHaveCount(12);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
+});
+
 test("demo personalizes scores, saves, filters and changes status without a database", async ({
   page,
 }) => {

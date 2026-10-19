@@ -73,6 +73,19 @@ const path = require("node:path");
           ? "Google включён в Auth; живой вход проверяется отдельно."
           : "Google пока не включён в Supabase.",
       );
+      const { loadSocialAuthOptions } = createTsLoader({ process })(
+        path.join(__dirname, "../lib/auth-provider-settings.ts"),
+      );
+      const social = await loadSocialAuthOptions();
+      for (const option of social.filter((option) => option.id !== "google"))
+        add(
+          option.id + "_oauth",
+          option.enabled ? "pass" : "pending",
+          option.label +
+            (option.enabled
+              ? " включён в Auth; настоящий вход нужно проверить отдельно."
+              : " пока не подключён. Данные приложения провайдера сохраняются в Supabase."),
+        );
     } else
       add(
         "auth",

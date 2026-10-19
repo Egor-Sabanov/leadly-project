@@ -4,6 +4,7 @@ import { getAccount } from "@/lib/workspace";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SignOutButton } from "@/components/auth/SignOutButton";
+import { CookieNoticeButton } from "@/components/privacy/CookieNotice";
 export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const account = await getAccount();
@@ -64,6 +65,7 @@ export default async function SettingsPage() {
                 подключены. Выход из аккаунта завершает сессию.
               </p>
             </details>
+            <CookieNoticeButton />
             <Link href="/privacy" className="text-link">
               Обработка персональных данных <ArrowUpRight size={14} />
             </Link>

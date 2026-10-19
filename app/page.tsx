@@ -84,14 +84,25 @@ export default async function Home() {
             })
             .toUpperCase()}
           title={`Привет, ${name}.`}
+          avatar={
+            <Link
+              href="/profile"
+              className="greeting-avatar"
+              aria-label="Изменить фото профиля"
+            >
+              <AvatarBadge
+                url={
+                  p?.avatar_url?.startsWith("/api/profile/avatar?")
+                    ? p.avatar_url
+                    : ""
+                }
+                name={name}
+              />
+            </Link>
+          }
           description="Твои задания, текущие договорённости и результаты."
           action={
             <div className="topbar-actions">
-              {p?.avatar_url?.startsWith("/api/profile/avatar?") && (
-                <Link href="/profile" aria-label="Открыть профиль">
-                  <AvatarBadge url={p.avatar_url} name={name} />
-                </Link>
-              )}
               <span className="signed-in-email">{user.email}</span>
               <SignOutButton />
             </div>

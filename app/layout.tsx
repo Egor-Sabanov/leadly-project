@@ -1,4 +1,5 @@
 import { BrandAtmosphere } from "@/components/brand/BrandAtmosphere";
+import { CookieNotice } from "@/components/privacy/CookieNotice";
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/golos-text";
 import "./globals.css";
@@ -28,6 +29,7 @@ export default function RootLayout({
           К содержимому
         </a>
         <div id="main-content">{children}</div>
+        <CookieNotice />
       </body>
     </html>
   );

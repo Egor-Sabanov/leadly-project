@@ -43,6 +43,33 @@ const { validTaskDate } = load(path.join(__dirname, "../lib/tasks.ts"));
     ));
   await test("rejects corrupt upload bytes", async () =>
     assert.rejects(() => normalizeAvatar(Buffer.from("invalid-image"))));
+  await test("missing server configuration returns a private actionable status without requesting storage", async () => {
+    const routeLoad = require("./ts-loader.cjs").createTsLoader({
+      Buffer,
+      require: (id) =>
+        id === "@/lib/account-api"
+          ? {
+              accountApi: async () => ({
+                account: { user: { id: "own-account" } },
+                error: null,
+              }),
+            }
+          : id.startsWith("@/")
+            ? load(path.join(__dirname, "..", id.slice(2) + ".ts"))
+            : require(id),
+    });
+    const route = routeLoad(
+      path.join(__dirname, "../app/api/profile/avatar/route.ts"),
+    );
+    for (const method of ["GET", "POST", "DELETE"]) {
+      const response = await route[method](
+        new Request("https://app.example/api/profile/avatar", { method }),
+      );
+      assert.equal(response.status, 503);
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      assert.equal((await response.json()).code, "avatar_not_configured");
+    }
+  });
   await test("rejects excessive pixel dimensions despite a small compressed file", async () => {
     const huge = await sharp({
       create: { width: 4100, height: 4100, channels: 3, background: "#000" },
