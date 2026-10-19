@@ -18,6 +18,7 @@ const { setupTelegramWebhook } = load(
     secret: process.env.TELEGRAM_WEBHOOK_SECRET || "",
     siteUrl: process.env.LEADLY_SITE_URL || "",
     apply: process.argv.includes("--apply"),
+    expectedUsername: process.env.TELEGRAM_BOT_USERNAME,
     rules: parseTelegramChannelRules(
       process.env.TELEGRAM_CHANNEL_RULES,
       process.env.TELEGRAM_ALLOWED_CHAT_IDS,

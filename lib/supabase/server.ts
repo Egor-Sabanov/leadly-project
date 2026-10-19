@@ -17,6 +17,7 @@ export async function createSupabaseServerClient() {
     cookieOptions: authCookieOptions(
       process.env.LEADLY_SITE_URL,
       process.env.VERCEL === "1",
+      cookieStore.get("leadly-tg")?.value === "1",
     ),
     cookies: {
       getAll() {

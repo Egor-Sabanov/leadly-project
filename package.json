@@ -11,7 +11,7 @@
     "test:scoring": "node test-opportunity-scoring-v14.cjs",
     "test:mvp": "node scripts/test-mvp.cjs",
     "test:db": "node scripts/test-database.cjs",
-    "test": "npm run test:rss && npm run test:scoring && npm run test:mvp && npm run test:db && npm run test:russian-auth && npm run test:discovery && npm run test:news && npm run test:assets && npm run test:deployment && npm run test:ingestion",
+    "test": "npm run test:rss && npm run test:scoring && npm run test:mvp && npm run test:db && npm run test:russian-auth && npm run test:discovery && npm run test:news && npm run test:assets && npm run test:deployment && npm run test:ingestion && npm run test:telegram",
     "check": "npm run lint && npm test && npm run build",
     "test:ui": "playwright test",
     "test:russian-auth": "node scripts/test-russian-auth.cjs",
@@ -24,7 +24,8 @@
     "check:readiness": "node --env-file-if-exists=.env.local scripts/check-readiness.cjs",
     "check:deployment": "node --env-file-if-exists=.env.local scripts/check-deployment.cjs",
     "test:deployment": "node scripts/test-deployment.cjs",
-    "test:ingestion": "node scripts/test-scheduled-ingestion.cjs"
+    "test:ingestion": "node scripts/test-scheduled-ingestion.cjs",
+    "test:telegram": "node scripts/test-telegram-security.cjs && node scripts/test-telegram-database.cjs"
   },
   "dependencies": {
     "@fontsource-variable/golos-text": "5.3.0",

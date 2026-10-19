@@ -11,7 +11,7 @@ export function BrandWelcome({
   destination,
 }: {
   name: string;
-  destination: "/" | "/onboarding";
+  destination: "/" | "/onboarding" | "/opportunities" | "/tasks" | "/profile";
 }) {
   const router = useRouter();
   useEffect(() => {

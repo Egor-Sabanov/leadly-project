@@ -192,6 +192,17 @@ function google(to = supabase) {
     assert.equal(report.transportReady, false);
     assert.ok(report.checks.filter((c) => c.status === "fail").length >= 3);
   });
+  await test("explicit Telegram frame policy is accepted without X-Frame-Options", async () => {
+    const headers = { ...authHeaders, "Content-Security-Policy": "frame-ancestors 'self' https://web.telegram.org https://webk.telegram.org https://webz.telegram.org" };
+    delete headers["X-Frame-Options"];
+    const report = await probeDeployment(origin, { fetcher: fixture({ "/auth": () => new Response('<h1>LEADLY</h1><link href="/_next/static/app.css">', { headers }) }) });
+    assert.equal(report.checks.find(c => c.id === "security_headers").status, "pass");
+  });
+  await test("a permissive CSP cannot hide behind a legacy DENY header", async () => {
+    const headers = { ...authHeaders, "Content-Security-Policy": "frame-ancestors *" };
+    const report = await probeDeployment(origin, { fetcher: fixture({ "/auth": () => new Response('<h1>LEADLY</h1><link href="/_next/static/app.css">', { headers }) }) });
+    assert.equal(report.checks.find(c => c.id === "security_headers").status, "fail");
+  });
   console.log(`RESULT ${count}/${count} deployment checks passed`);
 })().catch((error) => {
   console.error(error.message);

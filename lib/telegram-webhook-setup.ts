@@ -1,5 +1,6 @@
 import { isRecord, readLimitedJson } from "./request-guards";
 import type { TelegramChannelRule } from "./telegram-channel-rules";
+import { TELEGRAM_COMMANDS } from "./telegram-bot";
 export async function setupTelegramWebhook(
   config: {
     token: string;
@@ -7,6 +8,7 @@ export async function setupTelegramWebhook(
     siteUrl: string;
     rules: TelegramChannelRule[];
     apply: boolean;
+    expectedUsername?: string;
   },
   fetcher: typeof fetch = fetch,
 ) {
@@ -36,8 +38,6 @@ export async function setupTelegramWebhook(
     throw new Error(
       "Для Telegram нужен публичный HTTPS origin без пути или параметров.",
     );
-  if (!config.rules.length)
-    throw new Error("Сначала укажи разрешённые каналы.");
   async function call(method: string, payload: Record<string, unknown> = {}) {
     let response: Response;
     try {
@@ -64,8 +64,10 @@ export async function setupTelegramWebhook(
     return body.result;
   }
   const bot = await call("getMe");
-  if (!isRecord(bot) || !Number.isSafeInteger(bot.id) || bot.is_bot !== true)
+  if (!isRecord(bot) || !Number.isSafeInteger(bot.id) || bot.is_bot !== true || typeof bot.username !== "string" || !/^[A-Za-z0-9_]{5,32}$/.test(bot.username))
     throw new Error("Telegram не подтвердил бота.");
+  if (config.expectedUsername && bot.username.toLowerCase() !== config.expectedUsername.toLowerCase())
+    throw new Error("Токен принадлежит другому боту. Проверь TELEGRAM_BOT_USERNAME.");
   for (const rule of config.rules) {
     const chat = await call("getChat", { chat_id: rule.chatId });
     if (
@@ -93,14 +95,20 @@ export async function setupTelegramWebhook(
     const result = await call("setWebhook", {
       url: webhook,
       secret_token: config.secret,
-      allowed_updates: ["channel_post"],
+      allowed_updates: ["message", "channel_post"],
       drop_pending_updates: false,
     });
     if (result !== true) throw new Error("Webhook не подтверждён Telegram.");
+    if (await call("setMyCommands", { commands: TELEGRAM_COMMANDS }) !== true)
+      throw new Error("Telegram не подтвердил команды бота.");
+    if (await call("setChatMenuButton", {
+      menu_button: { type: "web_app", text: "LEADLY", web_app: { url: new URL("/telegram", origin).href } },
+    }) !== true) throw new Error("Telegram не подтвердил меню приложения.");
   }
   const info = await call("getWebhookInfo");
   if (!isRecord(info)) throw new Error("Не удалось проверить webhook.");
   return {
+    botUsername: bot.username,
     applied: config.apply,
     configuredUrlMatches: info.url === webhook,
     authorizedChannels: config.rules.length,

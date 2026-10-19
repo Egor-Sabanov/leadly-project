@@ -1,0 +1,36 @@
+.telegram-launch { min-height: 100dvh; display: grid; place-items: center; padding: clamp(18px, 4vw, 48px); }
+.telegram-launch-card { width: min(100%, 520px); padding: clamp(24px, 6vw, 46px); position: relative; overflow: hidden; }
+.telegram-launch-card > .leadly-logo { margin-bottom: 40px; }
+.telegram-launch-card h1 { font-size: clamp(29px, 6vw, 42px); line-height: 1.15; letter-spacing: -.045em; margin: 30px 0 18px; }
+.telegram-launch-card p { line-height: 1.65; overflow-wrap: anywhere; }
+.telegram-launch-card .auth-submit { width: 100%; margin: 22px 0 0; white-space: normal; text-align: center; gap: 10px; }
+.telegram-launch-line { height: 2px; width: 100%; background: linear-gradient(90deg, transparent, #b6a8d9, #e4e2eb, transparent); background-size: 200% 100%; animation: telegram-line 7s ease-in-out infinite alternate; opacity: .65; }
+.telegram-status { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
+.telegram-status svg { flex-shrink: 0; }
+.telegram-launch-footer, .telegram-actions { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; margin-top: 20px; }
+.telegram-launch-footer { font-size: 13px; color: var(--muted); justify-content: space-between; }
+.telegram-launch-footer button, .telegram-connection button.text-link { background: transparent; border: 0; padding: 0; color: #bcbcbc; cursor: pointer; font: inherit; }
+.telegram-launch-footer button:focus-visible, .telegram-connection button.text-link:focus-visible { outline: 2px solid #d8d0eb; outline-offset: 5px; border-radius: 2px; }
+.telegram-entry-help { padding: 18px; border: 1px solid #ffffff18; border-radius: 14px; background: linear-gradient(130deg, #b4a4d40b, #ffffff02); margin-top: 18px; }
+.telegram-entry-help h2 { font-size: 19px; margin: 0 0 10px; }
+.telegram-entry-help p { font-size: 15px; margin: 0; }
+.telegram-connection { min-width: 0; scroll-margin-top: 100px; }
+.telegram-connection .auth-submit, .telegram-connection .ghost { display: inline-flex; justify-content: center; align-items: center; gap: 10px; white-space: normal; max-width: 100%; }
+.telegram-connection .auth-submit { margin-top: 16px; }
+.telegram-connection .text-link { font: inherit; font-size: 14px; }
+.telegram-consent { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 12px; align-items: start; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+.telegram-consent input[type=checkbox] { width: 20px; height: 20px; margin: 2px 0 0; }
+.telegram-connected { font-size: 16px; overflow-wrap: anywhere; }
+.telegram-connection-note { font-size: 13px; line-height: 1.6; margin: 20px 0 0; }
+.telegram-mode #main-content { padding-top: var(--leadly-tg-top, 0px); padding-bottom: var(--leadly-tg-bottom, 0px); }
+.telegram-mode .app-shell, .telegram-mode .telegram-launch { min-height: calc(var(--leadly-tg-height, 100dvh) - var(--leadly-tg-top, 0px) - var(--leadly-tg-bottom, 0px)); }
+.telegram-mode .sidebar { top: var(--leadly-tg-top, 0px); height: calc(var(--leadly-tg-height, 100dvh) - var(--leadly-tg-top, 0px) - var(--leadly-tg-bottom, 0px)); }
+.telegram-mode .cookie-notice { bottom: calc(16px + var(--leadly-tg-bottom, 0px)); }
+.telegram-mode [role=dialog] { max-height: calc(var(--leadly-tg-height, 100dvh) - var(--leadly-tg-top, 0px) - var(--leadly-tg-bottom, 0px) - 32px); overflow-y: auto; }
+@keyframes telegram-line { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@media (prefers-reduced-motion: reduce) { .telegram-launch-line { animation-duration: 20s; } }
+@media (max-width: 700px) {
+  .telegram-mode .mobile-header { top: var(--leadly-tg-top, 0px); }
+  .telegram-mode .sidebar { top: calc(66px + var(--leadly-tg-top, 0px)); height: calc(var(--leadly-tg-height, 100dvh) - 66px - var(--leadly-tg-top, 0px) - var(--leadly-tg-bottom, 0px)); }
+  .telegram-mode .nav-backdrop { top: calc(66px + var(--leadly-tg-top, 0px)); }
+}

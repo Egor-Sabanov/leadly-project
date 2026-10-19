@@ -230,12 +230,12 @@ function botApi({ access = true } = {}) {
     const method = calls.at(-1).method;
     const result =
       method === "getMe"
-        ? { id: 123456, is_bot: true }
+        ? { id: 123456, is_bot: true, username: "test_leadly_bot" }
         : method === "getChat"
           ? { id: -1001234567, type: "channel", username: "test_channel" }
           : method === "getChatMember"
             ? { status: access ? "administrator" : "left" }
-            : method === "setWebhook"
+            : ["setWebhook", "setMyCommands", "setChatMenuButton"].includes(method)
               ? true
               : {
                   url: "https://leadly.example/api/telegram/webhook",
@@ -266,7 +266,7 @@ add(
     assert.equal(call.payload.drop_pending_updates, false);
     assert.equal(call.payload.secret_token, botConfig.secret);
     assert.deepEqual(Array.from(call.payload.allowed_updates), [
-      "channel_post",
+      "message", "channel_post",
     ]);
   },
 );
@@ -308,6 +308,19 @@ add("Telegram network failures do not disclose bot credentials", async () => {
       !error.message.includes(botConfig.token) &&
       error.message.includes("Telegram Bot API"),
   );
+});
+add("Telegram Mini App setup works without channel collection", async () => {
+  const api = botApi();
+  const result = await setupTelegramWebhook({ ...botConfig, rules: [], apply: true }, api.request);
+  assert.equal(result.authorizedChannels, 0);
+  assert.ok(api.calls.some(c => c.method === "setMyCommands"));
+  const menu = api.calls.find(c => c.method === "setChatMenuButton");
+  assert.equal(menu.payload.menu_button.web_app.url, "https://leadly.example/telegram");
+});
+add("Telegram setup refuses a different bot before mutations", async () => {
+  const api = botApi();
+  await assert.rejects(setupTelegramWebhook({ ...botConfig, expectedUsername: "another_bot", apply: true }, api.request), /другому боту/);
+  assert.ok(!api.calls.some(c => ["setWebhook", "setChatMenuButton", "setMyCommands"].includes(c.method)));
 });
 (async () => {
   let failed = 0;

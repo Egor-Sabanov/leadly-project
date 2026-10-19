@@ -104,13 +104,16 @@ async function probeDeployment(
   }
   add("entry", "pass", "Страница входа LEADLY открылась.");
   const headers = entry.response.headers;
+  const ancestors = (headers.get("content-security-policy") || "").split(";").map(value => value.trim()).find(value => value.startsWith("frame-ancestors"));
+  const safeFrames = ancestors
+    ? ancestors === "frame-ancestors 'self' https://web.telegram.org https://webk.telegram.org https://webz.telegram.org"
+    : headers.get("x-frame-options") === "DENY";
   add(
     "security_headers",
-    headers.get("x-content-type-options") === "nosniff" &&
-      headers.get("x-frame-options") === "DENY"
+    headers.get("x-content-type-options") === "nosniff" && safeFrames
       ? "pass"
       : "fail",
-    "Проверены nosniff и запрет чужих iframe.",
+    "Проверены nosniff и запрет iframe вне разрешённых Telegram Web origins.",
   );
   add(
     "auth_cache",

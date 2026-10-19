@@ -1,10 +1,14 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { readLimitedJson } from "@/lib/request-guards";
 import { normalizeTelegramPost } from "@/lib/telegram-source";
 import { parseTelegramChannelRules } from "@/lib/telegram-channel-rules";
 import { opportunityDisciplines } from "@/lib/disciplines";
+import { isRecord } from "@/lib/request-guards";
+import { telegramBotReply } from "@/lib/telegram-bot";
+import { telegramHeaders, telegramAdmin } from "@/lib/telegram-server";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
   const actual = request.headers.get("x-telegram-bot-api-secret-token") || "";
@@ -16,24 +20,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
     key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  let rules;
-  try {
-    rules = parseTelegramChannelRules(
-      process.env.TELEGRAM_CHANNEL_RULES,
-      process.env.TELEGRAM_ALLOWED_CHAT_IDS,
-      process.env.TELEGRAM_OPPORTUNITY_TYPE,
-    );
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid channel configuration" },
-      { status: 503 },
-    );
-  }
-  if (!url || !key || !rules.length)
-    return NextResponse.json(
-      { error: "Connector not configured" },
-      { status: 503 },
-    );
+  if (!url || !key)
+    return NextResponse.json({ error: "Connector not configured" }, { status: 503 });
   let input: unknown;
   try {
     input = await readLimitedJson(request, 32000);
@@ -43,14 +31,30 @@ export async function POST(request: Request) {
       { status: e instanceof RangeError ? 413 : 400 },
     );
   }
-  // The normalizer checks shape and allowed IDs before returning a post.
+  const db = telegramAdmin();
+  if (isRecord(input) && "message" in input) {
+    try {
+      const site = process.env.LEADLY_SITE_URL;
+      if (!site || new URL(site).protocol !== "https:")
+        return NextResponse.json({ error: "Connector not configured" }, { status: 503 });
+      const reply = await telegramBotReply(input, db, site, process.env.TELEGRAM_BOT_USERNAME);
+      // Telegram supports replying with a Bot API method in the webhook
+      // response. No token in the response, URLs or application logs.
+      return NextResponse.json(reply || { ok: true, ignored: true }, { headers: telegramHeaders });
+    } catch { return NextResponse.json({ error: "Storage unavailable" }, { status: 503 }); }
+  }
+  let rules;
+  try {
+    rules = parseTelegramChannelRules(
+      process.env.TELEGRAM_CHANNEL_RULES,
+      process.env.TELEGRAM_ALLOWED_CHAT_IDS,
+      process.env.TELEGRAM_OPPORTUNITY_TYPE,
+    );
+  } catch { return NextResponse.json({ error: "Invalid channel configuration" }, { status: 503 }); }
   const post = rules
     .map((rule) => normalizeTelegramPost(input, [rule.chatId], rule.type))
     .find(Boolean);
-  if (!post) return NextResponse.json({ ok: true, ignored: true });
-  const db = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  if (!post) return NextResponse.json({ ok: true, ignored: true }, { headers: telegramHeaders });
   const source = await db
     .from("opportunity_sources")
     .upsert(

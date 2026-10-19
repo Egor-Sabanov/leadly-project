@@ -1,9 +1,11 @@
 import { BrandAtmosphere } from "@/components/brand/BrandAtmosphere";
 import { CookieNotice } from "@/components/privacy/CookieNotice";
+import { TelegramEnvironment } from "@/components/telegram/TelegramEnvironment";
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/golos-text";
 import "./globals.css";
 import "./design-system.css";
+import "./telegram.css";
 
 export const metadata: Metadata = {
   title: "LEADLY — Возможности для заработка",
@@ -16,6 +18,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#101010",
   colorScheme: "dark",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -24,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body>
+        <TelegramEnvironment />
         <BrandAtmosphere />
         <a className="skip-link" href="#main-content">
           К содержимому

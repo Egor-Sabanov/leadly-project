@@ -14,6 +14,7 @@ export async function proxy(request: NextRequest) {
     cookieOptions: authCookieOptions(
       request.nextUrl.origin,
       process.env.VERCEL === "1",
+      request.cookies.get("leadly-tg")?.value === "1",
     ),
     cookies: {
       getAll() {
