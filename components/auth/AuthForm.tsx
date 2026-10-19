@@ -76,7 +76,7 @@ export function AuthForm({
         if (authError) throw authError;
         if (!data.session) {
           setMessage(
-            "Аккаунт создан. Проверь почту и подтверди адрес, затем войди в LEADLY.",
+            "Для нового аккаунта проверь почту и подтверди адрес. Если ты уже регистрировался или входил через Google, войди прежним способом.",
           );
           setMode("signin");
           return;
