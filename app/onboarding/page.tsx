@@ -257,9 +257,9 @@ export default function OnboardingPage() {
             </fieldset>
             <label className="switch-row">
               <span>
-                <strong>Только удалённые возможности</strong>
+                <strong>Предпочитаю удалённую работу</strong>
                 <small>
-                  Показывать только задания, где удалённый формат подтверждён
+                  Учитывать при подборе. Точный формат можно выбрать в фильтрах заданий.
                 </small>
               </span>
               <input
@@ -284,6 +284,7 @@ export default function OnboardingPage() {
                 </>
               )}
             </button>
+            <Link href="/opportunities" className="onboarding-back">Сначала посмотреть все задания <ArrowRight size={14} /></Link>
             <Link href="/auth" className="onboarding-back">
               <ArrowLeft size={14} /> Выйти и вернуться к авторизации
             </Link>

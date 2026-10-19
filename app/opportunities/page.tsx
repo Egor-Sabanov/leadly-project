@@ -1,11 +1,10 @@
 import { loadRussianOpportunities } from "@/lib/russian-opportunities";
-import Link from "next/link";
-import { ChevronDown } from "lucide-react";
 import { getAccount } from "@/lib/workspace";
 import { SetupScreen } from "@/components/layout/SetupScreen";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { OpportunityFeed } from "@/components/opportunities/OpportunityFeed";
 import { scoreOpportunity } from "@/lib/opportunity-scoring";
+import { opportunityFiltersFromParams, profileOpportunitySelection } from "@/lib/opportunity-filters";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +23,12 @@ function metadataString(metadata: RawMetadata, key: string): string | null {
 export default async function OpportunitiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ format?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const allFormats = (await searchParams).format === "all";
+  const query = await searchParams;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) if (typeof value === "string") params.set(key, value);
+
   const account = await getAccount();
   if (!account) return <SetupScreen />;
   const { supabase, user } = account;
@@ -39,14 +41,14 @@ export default async function OpportunitiesPage({
     { data: userSkills, error: userSkillsError },
     { data: userServices, error: userServicesError },
   ] = await Promise.all([
-    loadRussianOpportunities(supabase),
+    loadRussianOpportunities(supabase, 500),
     supabase
       .from("user_opportunities")
       .select("opportunity_id,status,is_saved")
       .eq("user_id", user.id),
     supabase
       .from("profiles")
-      .select("headline,skills_summary,target_monthly_income,currency_code")
+      .select("headline,skills_summary,target_monthly_income,currency_code,onboarding_completed")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -102,9 +104,11 @@ export default async function OpportunitiesPage({
     .map((row) => row.services?.name)
     .filter((name): name is string => Boolean(name));
 
-  const eligibleOpportunities = (opportunities || []).filter(
-    (item) => allFormats || !preferences?.remote_only || item.remote,
-  );
+  const profileSelection = profileOpportunitySelection({ completed: profile?.onboarding_completed, headline: profile?.headline, skills: skillNames, services: serviceNames, types: preferences?.preferred_opportunity_types });
+  const initialFilters = opportunityFiltersFromParams(params, profileSelection.configured ? "profile" : "all");
+  if (!profileSelection.configured) initialFilters.scope = "all";
+  // Preferences affect ranking; only an explicit feed filter hides formats.
+  const eligibleOpportunities = opportunities || [];
   const scoredRows = eligibleOpportunities.map((item) => {
     const metadata = asMetadata(item.raw_metadata);
 
@@ -167,79 +171,33 @@ export default async function OpportunitiesPage({
     <main className="app-shell">
       <Sidebar activeHref="/opportunities" />
       <section className="content profile-content">
-        <div className="feed-format-control">
-          <span>
-            {allFormats || !preferences?.remote_only
-              ? "Все форматы работы · условия уточняй у заказчика"
-              : "Только подтверждённая удалённая работа"}
-          </span>
-          <Link
-            className="text-link"
-            href={allFormats ? "/opportunities" : "/opportunities?format=all"}
-          >
-            {allFormats ? "Мои настройки поиска" : "Показать все форматы"}
-          </Link>
-        </div>
         <header className="topbar">
           <div>
             <div className="eyebrow">ПОДБОРКА</div>
-            <h1>Возможности</h1>
-            <p>Русскоязычные задания и вакансии под твои навыки.</p>
+            <h1>Найти задания</h1>
+            <p>Заказы, проекты и вакансии на русском языке.</p>
           </div>
         </header>
-
-        <div className="opportunities-intro panel">
-          <details className="feed-intro-details">
-            <summary>
-              <span>
-                О ленте <ChevronDown size={14} aria-hidden="true" />
-              </span>
-              <span className="opportunities-count">
-                {items.length} предложений
-              </span>
-            </summary>
-            <p>
-              Сохраняй интересные предложения и отслеживай их статус. Оценка
-              совпадения учитывает навыки и услуги из профиля, тип и свежесть
-              предложения. Финансовая оценка отдельно учитывает достоверность
-              бюджета, валюту и период оплаты.
-            </p>
-          </details>
-        </div>
 
         {stateError ? (
           <div className="panel opportunity-empty" role="alert">
             <h2>Не удалось загрузить возможности</h2>
-            <p>{stateError.message}</p>
-            <p>
-              Проверь миграции Supabase и политики доступа к таблицам
-              opportunities, user_opportunities, profile_skills и
-              profile_services.
-            </p>
+            <p>Обнови страницу или попробуй чуть позже. Твои сохранённые предложения остаются в аккаунте.</p>
           </div>
         ) : (
           <>
             <OpportunityFeed
               opportunities={items}
-              emptyBecauseRemoteOnly={Boolean(
-                preferences?.remote_only &&
-                opportunities.length &&
-                !eligibleOpportunities.length,
-              )}
+              initialFilters={initialFilters}
+              storageKey={`leadly:feed:${user.id}:v2:${profileSelection.configured ? "personal" : "all"}`}
+              profileSelection={profileSelection}
             />
             {scoreError && (
-              <p className="auth-message" role="status">
-                Оценки рассчитаны для этой загрузки, но не удалось сохранить их
-                в историю: {scoreError.message}
-              </p>
+              <details className="feed-history-note"><summary>История оценок</summary><p>Оценки в карточках рассчитаны. Сохранение в историю временно недоступно.</p></details>
             )}
           </>
         )}
 
-        <p className="opportunities-note">
-          Оригинал публикации доступен в каждой карточке. Оценка показывает
-          совпадения с профилем и не гарантирует получение работы.
-        </p>
       </section>
     </main>
   );

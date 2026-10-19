@@ -29,44 +29,16 @@ function ProviderIcon({ id }: { id: SocialAuthOption["id"] }) {
   );
 }
 export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
-  const active = options.some((o) => o.enabled);
+  const active = options.filter(o => o.enabled);
+  if (!active.length) return null;
   return (
     <section className="social-auth" aria-label="Вход через сервисы">
       <div className="auth-divider">
         <span>Другие способы входа</span>
       </div>
       <div className="social-auth-grid">
-        {options.map((o) =>
-          o.enabled ? (
-            <Link
-              key={o.id}
-              href={`/auth/social/${o.id}`}
-              className="social-auth-button"
-              aria-label={`Войти через ${o.label}`}
-              title={o.label}
-            >
-              <ProviderIcon id={o.id} />
-            </Link>
-          ) : (
-            <button
-              key={o.id}
-              type="button"
-              className="social-auth-button"
-              disabled
-              aria-label={`${o.label} — пока недоступен`}
-              title={`${o.label} — пока недоступен`}
-              aria-describedby="social-auth-status"
-            >
-              <ProviderIcon id={o.id} />
-            </button>
-          ),
-        )}
+        {active.map(o => <Link key={o.id} href={`/auth/social/${o.id}`} className="social-auth-button" aria-label={`Войти через ${o.label}`} title={o.label}><ProviderIcon id={o.id} /></Link>)}
       </div>
-      <p id="social-auth-status" className="social-auth-note">
-        {active
-          ? "Выбери сервис для безопасного входа. Пароль от него остаётся у провайдера."
-          : "Пока доступен вход по почте. Другие способы появятся позже."}
-      </p>
     </section>
   );
 }

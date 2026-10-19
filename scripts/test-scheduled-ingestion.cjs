@@ -72,6 +72,17 @@ function harness(options = {}) {
 }
 
 const tests = [
+  ['RSS keeps full source categories and does not truncate to forty projects', async () => {
+    const items = Array.from({ length: 65 }, (_, i) => ru('https://example.com/projects/' + i).replace('</item>', '<category><![CDATA[Аудио/Видео/Фото / Видеомонтаж]]></category></item>'));
+    const h = harness({ response: () => new Response(feed(...items)) });
+    const result = await h.run(); assert.equal(result.response.status, 200); assert.equal(result.body.imported, 65);
+    assert.equal(h.writes[0][64].category, 'Аудио/Видео/Фото / Видеомонтаж'); assert.ok(h.writes[0][64].raw_metadata.disciplines.includes('video'));
+  }],
+  ['RSS office evidence is not promoted to remote by a negated remote phrase', async () => {
+    const h = harness({ response: () => new Response(feed(ru().replace('Ищем специалиста', 'Не удалённая работа, только в офисе. Ищем специалиста'))) });
+    await h.run(); assert.equal(h.writes[0][0].remote, false); assert.equal(h.writes[0][0].raw_metadata.work_format, 'onsite');
+  }],
+
   ['cron rejects absent, weak and incorrect credentials', async () => {
     assert.equal(isCronAuthorized('short', 'Bearer short'), false);
     assert.equal(isCronAuthorized(secret, null), false);

@@ -160,7 +160,7 @@ export default async function Home() {
             {
               label: "Возможности",
               value: offers.error ? "—" : offers.data.length,
-              note: "Русскоязычная подборка · до 100",
+              note: "В свежей подборке",
               icon: Search,
             },
             {
@@ -215,7 +215,7 @@ export default async function Home() {
                 </span>
                 <span>
                   <strong>Подборка заданий</strong>
-                  <small>Проверь условия и объяснение оценки</small>
+                  <small>Найди проект по навыкам и бюджету</small>
                 </span>
                 <ArrowUpRight size={16} />
               </Link>

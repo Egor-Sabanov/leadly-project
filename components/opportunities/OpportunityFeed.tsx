@@ -6,6 +6,7 @@ import Link from "next/link";
 import { isRussianOpportunity } from "@/lib/opportunity-language";
 import { disciplines, opportunityDisciplines } from "@/lib/disciplines";
 import { safeSourceUrl } from "@/lib/links";
+import { defaultOpportunityFilters, normalizeOpportunityFilters, opportunityFiltersFromParams, opportunityFilterParams, opportunityFilterSearch, opportunityWorkFormat, type OpportunityFilters, matchesProfileSelection, type OpportunityProfileSelection } from "@/lib/opportunity-filters";
 import {
   Bookmark,
   Check,
@@ -207,19 +208,47 @@ function readableScoreText(value: string): string {
 export function OpportunityFeed({
   opportunities,
   demo = false,
-  emptyBecauseRemoteOnly = false,
+  initialFilters = defaultOpportunityFilters,
+  storageKey,
+  profileSelection = { configured: false, directions: [], types: [] },
 }: {
   opportunities: OpportunityItem[];
   demo?: boolean;
-  emptyBecauseRemoteOnly?: boolean;
+  initialFilters?: OpportunityFilters;
+  storageKey?: string;
+  profileSelection?: OpportunityProfileSelection;
 }) {
-  const [search, setSearch] = useState("");
-  const [type, setType] = useState("all");
-  const [discipline, setDiscipline] = useState("all");
-  const [sortMode, setSortMode] = useState<"relevance" | "match" | "newest">(
-    "relevance",
-  );
-  const [savedOnly, setSavedOnly] = useState(false);
+  const [filters, setFilters] = useState(initialFilters);
+  const { query: search, type, discipline, sort: sortMode, format, saved: savedOnly } = filters;
+  const [visibleCount, setVisibleCount] = useState(20);
+  const changeFilters = (patch: Partial<OpportunityFilters>) => {
+    const next = normalizeOpportunityFilters({ ...filters, ...patch });
+    setFilters(next); setVisibleCount(20);
+    if (storageKey) {
+      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* Storage can be disabled. URL filters remain usable. */ }
+    }
+    const search = opportunityFilterSearch(next, window.location.search);
+    window.history.replaceState(null, "", window.location.pathname + (search ? `?${search}` : "") + window.location.hash);
+  };
+  useEffect(() => {
+    if (!storageKey) return;
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (opportunityFilterParams.some(key => params.has(key))) { setFilters({ ...opportunityFiltersFromParams(params, initialFilters.scope), ...(!profileSelection.configured ? { scope: "all" as const } : {}) }); return; }
+      try { const stored = localStorage.getItem(storageKey); if (stored) setFilters({ ...normalizeOpportunityFilters(JSON.parse(stored)), ...(!profileSelection.configured ? { scope: "all" as const } : {}) }); } catch { /* Keep the default list when storage is unavailable or corrupt. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [storageKey, initialFilters.scope, profileSelection.configured]);
+  useEffect(() => {
+    const restore = () => { setFilters(opportunityFiltersFromParams(new URLSearchParams(window.location.search), initialFilters.scope)); setVisibleCount(20); };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [initialFilters.scope]);
+  const directionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of opportunities) for (const id of opportunityDisciplines(item)) counts.set(id, (counts.get(id) || 0) + 1);
+    return counts;
+  }, [opportunities]);
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const filtersId = useId();
@@ -252,6 +281,8 @@ export function OpportunityFeed({
     const query = search.trim().toLocaleLowerCase("ru");
     const items = opportunities.filter((item) => {
       if (!isRussianOpportunity(item)) return false;
+      if (filters.scope === "profile" && !matchesProfileSelection(item, opportunityDisciplines(item), profileSelection)) return false;
+      if (format !== "all" && opportunityWorkFormat(item) !== format) return false;
       if (
         discipline !== "all" &&
         !opportunityDisciplines(item).some((id) => id === discipline)
@@ -299,7 +330,7 @@ export function OpportunityFeed({
     });
 
     return items;
-  }, [opportunities, search, type, savedOnly, saved, sortMode, discipline]);
+  }, [opportunities, search, type, savedOnly, saved, sortMode, discipline, format, filters.scope, profileSelection]);
 
   async function updateStatus(item: OpportunityItem, nextStatus: string) {
     const previousStatus = statuses.get(item.id) || "new";
@@ -394,12 +425,16 @@ export function OpportunityFeed({
 
   return (
     <>
+      {!demo && <div className="feed-selection" role="group" aria-label="Подборка заданий">
+        <button type="button" aria-pressed={filters.scope === "all"} onClick={() => changeFilters({ ...defaultOpportunityFilters, scope: "all" })}>Все задания</button>
+        {profileSelection.configured ? <button type="button" aria-pressed={filters.scope === "profile"} onClick={() => changeFilters({ ...defaultOpportunityFilters, scope: "profile" })}>По моему профилю</button> : <Link href="/profile">Настроить подборку</Link>}
+      </div>}
       <div className="opportunity-filters panel">
         <label className="opportunity-search">
           <Search size={17} />
           <input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => changeFilters({ query: event.target.value })}
             placeholder="Поиск заданий"
             aria-label="Поиск возможностей"
           />
@@ -412,7 +447,7 @@ export function OpportunityFeed({
           onClick={() => setFiltersExpanded((value) => !value)}
         >
           <SlidersHorizontal size={16} /> Фильтры
-          {(discipline !== "all" || type !== "all") && (
+          {(discipline !== "all" || type !== "all" || format !== "all") && (
             <span
               className="filter-active-dot"
               aria-label="Есть выбранные фильтры"
@@ -428,12 +463,12 @@ export function OpportunityFeed({
             <select
               aria-label="Направление заданий"
               value={discipline}
-              onChange={(e) => setDiscipline(e.target.value)}
+              onChange={(e) => changeFilters({ discipline: e.target.value, scope: "all" })}
             >
               <option value="all">Все направления</option>
               {disciplines.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.label}
+                  {d.label} · {directionCounts.get(d.id) || 0}
                 </option>
               ))}
             </select>
@@ -489,7 +524,7 @@ export function OpportunityFeed({
                       aria-selected={type === value}
                       className={`type-filter-option ${type === value ? "active" : ""}`}
                       onClick={() => {
-                        setType(value);
+                        changeFilters({ type: value });
                         setTypeMenuOpen(false);
                       }}
                     >
@@ -501,6 +536,15 @@ export function OpportunityFeed({
               </>
             )}
           </div>
+          <label className="opportunity-type-filter format-filter">
+            <span className="sr-only">Формат работы</span>
+            <select aria-label="Формат работы" value={format} onChange={e => changeFilters({ format: e.target.value as OpportunityFilters["format"] })}>
+              <option value="all">Любой формат</option>
+              <option value="remote">Подтверждённая удалёнка</option>
+              <option value="unspecified">Формат не указан</option>
+              <option value="onsite">На месте / в офисе</option>
+            </select>
+          </label>
           <label className="opportunity-type-filter sort-filter">
             <SlidersHorizontal size={16} aria-hidden="true" />
             <span className="sr-only">Сортировка возможностей</span>
@@ -508,9 +552,7 @@ export function OpportunityFeed({
               aria-label="Сортировка возможностей"
               value={sortMode}
               onChange={(event) =>
-                setSortMode(
-                  event.target.value as "relevance" | "match" | "newest",
-                )
+                changeFilters({ sort: event.target.value as OpportunityFilters["sort"] })
               }
             >
               <option value="relevance">Лучше подходят</option>
@@ -523,18 +565,11 @@ export function OpportunityFeed({
           className={`secondary ${savedOnly ? "selected" : ""}`}
           type="button"
           aria-pressed={savedOnly}
-          onClick={() => setSavedOnly((value) => !value)}
+          onClick={() => changeFilters({ saved: !savedOnly })}
         >
           <Bookmark size={15} /> Сохранённые
         </button>
       </div>
-
-      {type === "all" && (
-        <p className="feed-scope-note" role="note">
-          Заказы, проекты и вакансии. Предложения услуг доступны в фильтре
-          типов.
-        </p>
-      )}
 
       {message && (
         <p className="auth-message" role="status">
@@ -547,7 +582,10 @@ export function OpportunityFeed({
           <AnimatedIcon kind="search" />{" "}
           {demo ? "Примеры возможностей" : "Подходящие предложения"}
         </h2>
-        <span>Найдено: {filtered.length}</span>
+        <div className="feed-result-actions">
+          <span role="status">Найдено: {filtered.length}</span>
+          {(search || discipline !== "all" || type !== "all" || format !== "all" || savedOnly) && <button type="button" className="text-link" onClick={() => changeFilters(defaultOpportunityFilters)}>Сбросить фильтры</button>}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -555,29 +593,13 @@ export function OpportunityFeed({
           <div className="empty-icon">
             <Search size={22} />
           </div>
-          <h2>
-            {emptyBecauseRemoteOnly
-              ? "Нет предложений с подтверждённой удалённой работой"
-              : opportunities.length === 0
-                ? "Пока нет реальных предложений"
-                : "Ничего не найдено"}
-          </h2>
-          <p>
-            {emptyBecauseRemoteOnly
-              ? "В профиле выбран только удалённый формат. В текущей подборке есть задания, но у них этот формат не указан. Измени предпочтение или вернись позже."
-              : opportunities.length === 0
-                ? "В ленте пока нет активных предложений. Новые задания появятся после обновления подборки. Вернись позже."
-                : "Измени запрос или фильтры. Сохранённые предложения появятся здесь после добавления."}
-          </p>
-          {emptyBecauseRemoteOnly && (
-            <Link href="/profile" className="ghost">
-              Настроить поиск в профиле
-            </Link>
-          )}
+          <h2>{opportunities.length === 0 ? "Новые задания появятся здесь" : filters.scope === "profile" ? "Пока нет заданий по твоему профилю" : "По этим фильтрам ничего не найдено"}</h2>
+          <p>{format === "remote" ? "В источниках не всегда указан формат работы. Выбери любой формат, чтобы увидеть остальные задания." : filters.scope === "profile" ? "Посмотри все задания или дополни навыки и услуги в профиле." : "Попробуй другое направление или измени запрос."}</p>
+          {opportunities.length > 0 && <button type="button" className="ghost" onClick={() => changeFilters(defaultOpportunityFilters)}>Показать все задания</button>}
         </div>
       ) : (
         <div className="opportunities-feed-list">
-          {filtered.map((item) => {
+          {filtered.slice(0, visibleCount).map((item) => {
             const moneyStatus = item.money_score_status || "missing_budget";
             const moneyComparable = moneyStatus === "comparable";
             const moneyStatusLabel =
@@ -604,6 +626,9 @@ export function OpportunityFeed({
                 ? Math.max(0, (currentTimeMs - publishedAtMs) / 86400000)
                 : null;
             const oldListing = ageDays != null && ageDays >= 45;
+            const workFormat = opportunityWorkFormat(item);
+            let sourceName = item.company_name;
+            if (!sourceName) { try { sourceName = new URL(item.source_url).hostname.replace(/^www\./, ""); } catch { sourceName = "Публикация"; } }
 
             return (
               <article
@@ -613,7 +638,7 @@ export function OpportunityFeed({
                 <div className="opp-top">
                   <span className="source">
                     <span className="source-dot" />{" "}
-                    {item.company_name || "Источник предложения"}
+                    {sourceName}
                   </span>
                   <span className="tag">
                     {typeLabels[item.type] || item.type}
@@ -652,9 +677,7 @@ export function OpportunityFeed({
                 )}
                 <div className="opportunity-meta">
                   <span>
-                    {item.remote
-                      ? "Удалённо"
-                      : item.location || "Локация не указана"}
+                    {workFormat === "remote" ? "Удалённо" : workFormat === "onsite" ? item.location || "На месте" : "Формат не указан"}
                   </span>
                   <span>
                     Конкуренция:{" "}
@@ -666,21 +689,6 @@ export function OpportunityFeed({
                       : `Добавлено: ${new Date(item.discovered_at).toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })}`}
                   </span>
                 </div>
-                {oldListing && (
-                  <p
-                    role="note"
-                    className="client"
-                    style={{
-                      margin: "6px 0 0",
-                      color: "var(--muted)",
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    Объявление опубликовано {Math.floor(ageDays!)} дней назад.
-                    Проверь, что оно ещё актуально, прежде чем тратить время на
-                    отклик.
-                  </p>
-                )}
                 {isFreelancerSelfPromotion(item) && (
                   <p
                     role="note"
@@ -701,10 +709,10 @@ export function OpportunityFeed({
                       {moneyStatus === "heuristic_budget" && (
                         <div className="budget-caption">
                           {item.type === "job"
-                            ? "Диапазон оплаты из вакансии · не подтверждён"
+                            ? "Оплата из текста вакансии"
                             : isFreelancerSelfPromotion(item)
-                              ? "Сумма из публикации · не подтверждена"
-                              : "Бюджет проекта из объявления · не подтверждён"}
+                              ? "Сумма из текста публикации"
+                              : "Бюджет из текста объявления"}
                         </div>
                       )}
                       <strong>
@@ -771,6 +779,7 @@ export function OpportunityFeed({
                     Как рассчитана оценка <ChevronDown size={14} />
                   </summary>
                   <div className="opportunity-explanation-body">
+                    {oldListing && <p className="muted">Публикация старше 45 дней. Уточни актуальность у заказчика.</p>}
                     <p
                       className="client"
                       style={{
@@ -879,6 +888,7 @@ export function OpportunityFeed({
           })}
         </div>
       )}
+      {filtered.length > visibleCount && <div className="feed-load-more"><button type="button" className="ghost" onClick={() => setVisibleCount(value => value + 20)}>Показать ещё {Math.min(20, filtered.length - visibleCount)}</button><span className="muted">Показано {Math.min(visibleCount, filtered.length)} из {filtered.length}</span></div>}
     </>
   );
 }

@@ -1,3 +1,5 @@
+import { opportunityDisciplines } from "@/lib/disciplines";
+import { opportunityWorkFormat } from "@/lib/opportunity-filters";
 import { importHhDiscovery } from "@/lib/sources/hh";
 import { isRussianOpportunity } from "@/lib/opportunity-language";
 import { createHash, randomUUID } from "node:crypto";
@@ -12,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const MAX_FEEDS = 10;
-const MAX_ITEMS_PER_FEED = 40;
+const MAX_ITEMS_PER_FEED = 100;
 const MAX_DESCRIPTION = 6000;
 const MAX_RESPONSE_BYTES = 2_000_000;
 const MAX_REDIRECTS = 3;
@@ -26,6 +28,7 @@ type FeedItem = {
   description: string;
   publishedAt: string | null;
   guid: string | null;
+  category: string;
 };
 type Budget = {
   min: number | null;
@@ -376,6 +379,7 @@ function parseFeed(xml: string): FeedItem[] {
             ? parsedDate.toISOString()
             : null,
         guid: guid || null,
+        category: [...block.matchAll(/<category(?:\s[^>]*)?>([\s\S]*?)<\/category\s*>/gi)].map(match => decodeXml(match[1])).filter(Boolean).join(" · ").slice(0, 300),
       };
     })
     .filter((item) => item.title.length > 0 && /^https:\/\//i.test(item.link));
@@ -1024,19 +1028,18 @@ export async function GET(request: Request) {
               : sourceName,
           description: item.description || null,
           source_url: item.link,
-          category: "RSS",
-          remote:
-            /(^|\.)(weworkremotely\.com|remotive\.com|jobicy\.com|remoteok\.com)$/.test(
-              sourceUrl.hostname,
-            ) ||
-            /\bremote\b|удал[её]нн/i.test(
-              `${item.title} ${item.description}`,
-            ),
+          category: item.category || null,
+          remote: opportunityWorkFormat({ ...item, remote:
+            /(^|\.)(weworkremotely\.com|remotive\.com|jobicy\.com|remoteok\.com)$/.test(sourceUrl.hostname) || /\bremote\b|удал[её]нн/i.test(`${item.title} ${item.description}`),
+          }) === "remote",
           currency_code: budget.currency,
           budget_min: budget.min,
           budget_max: budget.max,
           published_at: item.publishedAt,
           raw_metadata: {
+            disciplines: opportunityDisciplines(item),
+            source_category: item.category || null,
+            work_format: opportunityWorkFormat({ ...item, remote: /\bremote\b|удал[её]нн/i.test(`${item.title} ${item.description}`) }),
             remote_evidence: "source_or_text_inference",
             feed_url: feedUrl,
             guid: item.guid,

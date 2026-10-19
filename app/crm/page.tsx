@@ -24,9 +24,9 @@ export default async function CrmPage() {
       <Sidebar activeHref="/crm" />
       <section className="content">
         <PageHeader
-          eyebrow="ОТ ИНТЕРЕСА К РЕЗУЛЬТАТУ"
-          title="Моя воронка"
-          description="У каждой возможности есть следующий шаг. Не теряй его из виду."
+          eyebrow="РАБОТА ПО ЭТАПАМ"
+          title="Мои проекты"
+          description="Сохранённые задания, отклики и переговоры — по этапам работы."
           action={
             <Link className="ghost" href="/opportunities">
               Добавить из ленты <ArrowUpRight size={15} />
@@ -38,11 +38,7 @@ export default async function CrmPage() {
         ) : (
           <Pipeline items={(data || []) as unknown as PipelineItem[]} />
         )}
-        <p className="profile-muted">
-          Показаны последние 500 возможностей. Изменения статуса сохраняются
-          вместе с историей. Отклик отмечается отправленным только по твоему
-          действию.
-        </p>
+
       </section>
     </main>
   );

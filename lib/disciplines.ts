@@ -17,7 +17,7 @@ export const disciplines = [
     services: ["Создание лендинга"],
     query: "разработчик OR программист",
     pattern:
-      /разработ|программист|в[её]рстк|react|typescript|next\.js|python|backend|frontend/iu,
+      /разработ|программист|в[её]рстк|react|typescript|next\.js|python|backend|frontend|wordpress|tilda|битрикс|автоматизац|n8n|парсинг|базы данных|приложени|сайты/iu,
   },
   {
     id: "writing",
@@ -46,7 +46,7 @@ export const disciplines = [
     skills: ["Видеомонтаж", "DaVinci Resolve", "Adobe Premiere Pro"],
     services: ["Монтаж Reels и Shorts", "Монтаж видеороликов"],
     query: "видеомонтаж OR видеомонтажер OR моушн",
-    pattern: /монтаж|видео|reels|shorts|premiere|davinci|моушн|after effects/iu,
+    pattern: /видео|монтаж[её]р|монтаж.{0,24}(?:ролик|клип)|reels|shorts|premiere|davinci|моушн|after effects/iu,
   },
   {
     id: "social",
@@ -121,9 +121,10 @@ export type DisciplineId = (typeof disciplines)[number]["id"];
 export function opportunityDisciplines(item: {
   title?: unknown;
   description?: unknown;
+  category?: unknown;
 }) {
   const text =
-    `${typeof item.title === "string" ? item.title : ""} ${typeof item.description === "string" ? item.description : ""}`
+    `${typeof item.title === "string" ? item.title : ""} ${typeof item.description === "string" ? item.description : ""} ${typeof item.category === "string" ? item.category : ""}`
       .slice(0, 20000)
       .replace(/<[^>]*>/g, " ");
   return disciplines.filter((d) => d.pattern.test(text)).map((d) => d.id);

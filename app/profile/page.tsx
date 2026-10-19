@@ -401,10 +401,9 @@ export default function ProfilePage() {
               </fieldset>
               <label className="switch-row">
                 <span>
-                  <strong>Только удалённые возможности</strong>
+                  <strong>Предпочитаю удалённую работу</strong>
                   <small>
-                    Показывать только задания с подтверждённым удалённым
-                    форматом
+                    Учитывать при подборе. Точный формат можно выбрать в фильтрах возможностей.
                   </small>
                 </span>
                 <input
@@ -425,8 +424,7 @@ export default function ProfilePage() {
                 <div>
                   <h2>Предпочтения</h2>
                   <p>
-                    Сохраняются как настройки профиля; доступность зависит от
-                    подключённых сервисов.
+                    Персональная подборка на основе твоих навыков и услуг.
                   </p>
                 </div>
               </div>
@@ -441,20 +439,7 @@ export default function ProfilePage() {
                   onChange={(e) => setAiEnabled(e.target.checked)}
                 />
               </label>
-              <label className="switch-row">
-                <span>
-                  <strong>Уведомления Telegram</strong>
-                  <small>
-                    Настройка предпочтения; для доставки потребуется подключить
-                    Telegram
-                  </small>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={telegramEnabled}
-                  onChange={(e) => setTelegramEnabled(e.target.checked)}
-                />
-              </label>
+
             </section>
 
             {error && (

@@ -13,9 +13,9 @@ import {
 import type { LucideIcon } from "lucide-react";
 export type NavItem = { label: string; href: string; icon: LucideIcon };
 export const mainNavigation: NavItem[] = [
-  { label: "Обзор", href: "/", icon: LayoutDashboard },
-  { label: "Возможности", href: "/opportunities", icon: Search },
-  { label: "Моя воронка", href: "/crm", icon: BriefcaseBusiness },
+  { label: "Главная", href: "/", icon: LayoutDashboard },
+  { label: "Найти задания", href: "/opportunities", icon: Search },
+  { label: "Мои проекты", href: "/crm", icon: BriefcaseBusiness },
   { label: "Отклики", href: "/ai-outreach", icon: Send },
   { label: "Клиенты", href: "/clients", icon: Users },
   { label: "Мои задачи", href: "/tasks", icon: ListTodo },

@@ -8,6 +8,13 @@ import {
   validUuid,
   sameOrigin,
 } from "@/lib/request-guards";
+export async function GET() {
+  try {
+    const { data, error } = await (await createSupabaseServerClient()).auth.getUser();
+    if (error || !data.user) return NextResponse.json({ ai: false }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json({ ai: Boolean(process.env.LEADLY_AI_API_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY) }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch { return NextResponse.json({ ai: false }, { status: 503, headers: { "Cache-Control": "private, no-store" } }); }
+}
 export async function POST(request: Request) {
   if (!sameOrigin(request))
     return NextResponse.json(
@@ -33,7 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Войди в аккаунт." }, { status: 401 });
   if (!process.env.LEADLY_AI_API_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY)
     return NextResponse.json(
-      { error: "AI ещё не подключён. Используй бесплатный шаблон отклика." },
+      { error: "Этот способ подготовки временно недоступен. Можно подготовить черновик по профилю." },
       { status: 503 },
     );
   let body: unknown;
@@ -78,7 +85,7 @@ export async function POST(request: Request) {
   ]);
   if ([offer, profile, skills, services].some((r) => r.error))
     return NextResponse.json(
-      { error: "Не удалось загрузить данные. Проверь профиль и миграции." },
+      { error: "Не удалось загрузить данные. Попробуй ещё раз чуть позже." },
       { status: 503 },
     );
   if (

@@ -294,15 +294,13 @@ test("dark theme, Russian font and sidebar remain readable on narrow and short s
   }
 });
 
-test("social providers are visible and unavailable ones fail closed without credentials", async ({
+test("unavailable social providers are hidden and their endpoints fail closed", async ({
   page,
   request,
 }) => {
   await page.goto("/auth");
-  for (const name of ["Google", "GitHub", "VK ID", "Яндекс ID"])
-    await expect(
-      page.getByRole("button", { name: new RegExp(name) }),
-    ).toBeDisabled();
+  await expect(page.locator(".social-auth-button")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Вход через сервисы" })).toHaveCount(0);
   const response = await request.get("/auth/social/google", {
     maxRedirects: 0,
   });

@@ -653,7 +653,7 @@ input[readonly] {
 }
 .opportunity-filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   padding: 16px;
   background: #171717;
@@ -696,9 +696,14 @@ input[readonly] {
   grid-row: 2;
 }
 .opportunity-filters .sort-filter {
-  grid-column: 3 / 5;
+  grid-column: 4;
   grid-row: 2;
 }
+.opportunity-filters .format-filter { grid-column: 3; grid-row: 2; }
+.feed-result-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 18px; font-size: 14px; }
+.feed-result-actions .text-link { background: transparent; border: 0; color: #c6bbda; font: inherit; cursor: pointer; padding: 4px 0; }
+.feed-load-more { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 18px; margin: 24px 0; }
+.feed-history-note { color: var(--muted); font-size: 13px; margin-top: 16px; }
 .opportunity-search,
 .opportunity-type-filter {
   min-width: 0;
@@ -2238,9 +2243,10 @@ input[readonly] {
     grid-column: 2;
   }
   .opportunity-filters .sort-filter {
-    grid-column: 1 / -1;
+    grid-column: 2;
     grid-row: 3;
   }
+  .opportunity-filters .format-filter { grid-column: 1; grid-row: 3; }
   .source-grid {
     grid-template-columns: 1fr;
   }
@@ -2440,6 +2446,7 @@ input[readonly] {
   }
   .opportunity-filters .direction-filter,
   .opportunity-filters .custom-type-filter,
+  .opportunity-filters .format-filter,
   .opportunity-filters .sort-filter {
     grid-column: auto;
     grid-row: auto;
@@ -3965,4 +3972,14 @@ select option {
   select option:checked {
     outline: 1px solid Highlight;
   }
+}
+
+.feed-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.feed-selection button, .feed-selection a { border: 1px solid #ffffff26; background: #ffffff03; color: #bcbcbc; border-radius: 10px; min-height: 44px; padding: 10px 16px; font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; }
+.feed-selection button[aria-pressed=true] { color: #f0edf7; background: linear-gradient(130deg, #af9acf22, #ffffff08); border-color: #b09dc36b; }
+.feed-selection button:focus-visible, .feed-selection a:focus-visible, .feed-result-actions button:focus-visible { outline: 2px solid #c9bddb; outline-offset: 3px; }
+@media (max-width: 700px) { .feed-selection { gap: 8px; } .feed-selection button, .feed-selection a { flex: 1; text-align: center; padding: 10px; } .feed-result-actions { justify-content: flex-start; } }
+@media (max-width: 700px) {
+  .opportunity-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
+  .opportunity-filters > .secondary { padding: 10px 8px; gap: 6px; font-size: 13px; }
 }

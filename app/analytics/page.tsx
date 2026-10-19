@@ -101,7 +101,7 @@ export default async function AnalyticsPage() {
                 </div>
               </section>
               <section className="panel">
-                <h2>Состояние воронки</h2>
+                <h2>Проекты по этапам</h2>
                 {Object.entries(statusLabels).map(([k, label]) => (
                   <div className="check-status" key={k}>
                     <span>{label}</span>

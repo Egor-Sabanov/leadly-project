@@ -13,7 +13,7 @@ const source = fs.readFileSync(routePath, 'utf8');
 const start = source.indexOf('type FeedItem =');
 const end = source.indexOf('\nexport async function GET', start);
 assert.ok(start >= 0 && end > start, 'Could not locate RSS helper functions in route.ts');
-const helperSource = `const MAX_ITEMS_PER_FEED = 40; const MAX_DESCRIPTION = 6000; const MAX_RESPONSE_BYTES = 2_000_000; const MAX_FREELANCEHUNT_PAGES = 3; const MAX_FREELANCEHUNT_PROJECTS_PER_SYNC = 40; const FREELANCEHUNT_API_BASE = 'https://api.freelancehunt.com/v2/projects';\n${source.slice(start, end)}\nmodule.exports = { extractBudget, isPublicIp, parseFeedUrl, decodeXml, parseFeed, canonicalKey, classify, classifyFeedItem, sourceIdentity, parseSafeFreelancehuntWebUrl, safeFreelancehuntNextUrl, normalizeFreelancehuntProject, shouldSkipFreelancehuntProject, importFreelancehuntProjects, fetchFreelancehuntProjectPage };`;
+const helperSource = `const MAX_ITEMS_PER_FEED = 100; const MAX_DESCRIPTION = 6000; const MAX_RESPONSE_BYTES = 2_000_000; const MAX_FREELANCEHUNT_PAGES = 3; const MAX_FREELANCEHUNT_PROJECTS_PER_SYNC = 40; const FREELANCEHUNT_API_BASE = 'https://api.freelancehunt.com/v2/projects';\n${source.slice(start, end)}\nmodule.exports = { extractBudget, isPublicIp, parseFeedUrl, decodeXml, parseFeed, canonicalKey, classify, classifyFeedItem, sourceIdentity, parseSafeFreelancehuntWebUrl, safeFreelancehuntNextUrl, normalizeFreelancehuntProject, shouldSkipFreelancehuntProject, importFreelancehuntProjects, fetchFreelancehuntProjectPage };`;
 const compiled = ts.transpileModule(helperSource, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText;

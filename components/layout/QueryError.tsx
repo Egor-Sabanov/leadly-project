@@ -1,10 +1,9 @@
 export function QueryError({ message }: { message: string }) {
+  if (!message) return null;
   return (
     <div className="auth-message error" role="alert">
-      <strong>Данные не загрузились.</strong> {message}
-      <br />
-      Обнови страницу. Если ошибка повторяется, проверь подключение и применение
-      миграций.
+      <strong>Не удалось загрузить данные.</strong>
+      <br />Обнови страницу или попробуй чуть позже.
     </div>
   );
 }

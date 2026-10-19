@@ -106,6 +106,7 @@ export default function AiOutreachPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [aiAvailable, setAiAvailable] = useState(false);
   const [draftModel, setDraftModel] = useState("leadly-template-v1");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -122,6 +123,8 @@ export default function AiOutreachPage() {
       return;
     }
     setUserId(user.id);
+    const availability = await fetch("/api/outreach", { cache: "no-store" }).then(response => response.ok ? response.json() : null).catch(() => null);
+    setAiAvailable(availability?.ai === true);
     const [opp, prof, skillRows, serviceRows, generated] = await Promise.all([
       loadRussianOpportunities(supabase),
       supabase
@@ -221,7 +224,7 @@ export default function AiOutreachPage() {
         throw new Error(result.error || "Не удалось подготовить отклик.");
       setDraft(result.content);
       setDraftModel(result.model);
-      setNotice("AI-черновик готов. Проверь все факты перед отправкой.");
+      setNotice("Черновик готов. Можно отредактировать текст.");
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Не удалось подготовить отклик.",
@@ -299,7 +302,7 @@ export default function AiOutreachPage() {
                 </span>
                 <div>
                   <h2>Возможность</h2>
-                  <p>Выбери реальное предложение из базы.</p>
+                  <p>Выбери задание, на которое хочешь откликнуться.</p>
                 </div>
               </div>
               {opportunities.length ? (
@@ -323,8 +326,7 @@ export default function AiOutreachPage() {
                 </label>
               ) : (
                 <p className="auth-message">
-                  В базе пока нет активных предложений. Они появятся здесь после
-                  обновления ленты; вернись позже.
+                  Сначала найди подходящее задание в «Возможностях».
                 </p>
               )}
               {selected && (
@@ -375,7 +377,7 @@ export default function AiOutreachPage() {
                   maxLength={2000}
                   value={extra}
                   onChange={(e) => setExtra(e.target.value)}
-                  placeholder="Например: портфолио, похожий проект или сроки. Не добавляй неподтверждённые обещания."
+                  placeholder="Например: ссылка на портфолио, похожий проект или удобные сроки."
                 />
               </label>
               <div className="profile-save-row">
@@ -384,7 +386,7 @@ export default function AiOutreachPage() {
                   {skills.length} · услуг: {services.length}
                 </span>
                 <div className="outreach-actions">
-                  <button
+                  {aiAvailable && (<button
                     className="ghost"
                     type="button"
                     disabled={!selected || generating}
@@ -396,14 +398,14 @@ export default function AiOutreachPage() {
                       <PencilLine size={15} />
                     )}
                     Подготовить с AI
-                  </button>
+                  </button>)}
                   <button
                     className="auth-submit profile-save"
                     type="button"
                     disabled={!selected || generating}
                     onClick={generate}
                   >
-                    <PencilLine size={16} /> Составить по шаблону
+                    <PencilLine size={16} /> Подготовить черновик
                   </button>
                 </div>
               </div>
@@ -416,8 +418,8 @@ export default function AiOutreachPage() {
                 <div>
                   <h2>Проверка и редактирование</h2>
                   <p>
-                    Шаблон работает без внешнего AI. AI-генерация доступна при
-                    подключённом провайдере; отправку выполняешь ты.
+                    Добавь детали своего опыта и отредактируй текст под задачу.
+                    Готовый отклик можно скопировать или сохранить.
                   </p>
                 </div>
               </div>

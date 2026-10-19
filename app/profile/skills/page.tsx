@@ -320,8 +320,7 @@ export default function ProfileSkillsPage() {
                 </div>
               ) : (
                 <p className="auth-message">
-                  Каталог навыков пока пуст. Примени SQL-миграцию
-                  `0002_seed_skill_service_catalog.sql` из архива.
+                  Не удалось получить каталог навыков. Попробуй обновить страницу.
                 </p>
               )}
               <div className="profile-entry-list">
@@ -413,8 +412,7 @@ export default function ProfileSkillsPage() {
                 </div>
               ) : (
                 <p className="auth-message">
-                  Каталог услуг пока пуст. Примени SQL-миграцию
-                  `0002_seed_skill_service_catalog.sql` из архива.
+                  Не удалось получить каталог услуг. Попробуй обновить страницу.
                 </p>
               )}
               <div className="profile-entry-list">
