@@ -93,10 +93,10 @@ test("navigation is usable, tariff cards only appear in profile", async ({
       ),
     ).toBe(true);
   }
-  await page.goto("/profile");
+  await page.goto("/profile/plans");
   await expect(page.locator(".plan-card")).toHaveCount(4);
   await expect(page.locator(".plan-card").last()).toContainText("4 990");
-  await expect(page.getByText(/Сейчас доступен бесплатный MVP/)).toBeVisible();
+  await expect(page.getByText(/Бесплатный план уже доступен/)).toBeVisible();
 });
 
 test("demo and auth have no WCAG A/AA violations", async ({ page }) => {
@@ -321,35 +321,26 @@ test("registration requires data notice acknowledgement; providers stay icon-onl
   );
 });
 
-test("motion can be paused persistently and respects the system preference", async ({
+test("brand motion stays active without a pause button and remains gentle with reduced motion", async ({
   page,
 }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("leadly.motion.paused", "true"),
+  );
   await page.goto("/auth");
-  await page
-    .getByRole("button", { name: "Приостановить анимации", exact: true })
-    .click();
-  await expect(page.locator("html")).toHaveAttribute("data-motion", "paused");
+  await expect(page.getByRole("button", { name: /анимаци/i })).toHaveCount(0);
   expect(
     await page
-      .locator(".brand-orbit--outer")
-      .evaluate((element) => getComputedStyle(element).animationName),
-  ).toBe("none");
-  await page.reload();
-  await expect(
-    page.getByRole("button", { name: "Включить анимации", exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Включить анимации", exact: true })
-    .click();
+      .locator(".brand-atmosphere span")
+      .first()
+      .evaluate((el) => getComputedStyle(el).animationName),
+  ).not.toBe("none");
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(
     await page
-      .locator(".brand-orbit--outer")
-      .evaluate((element) => getComputedStyle(element).animationName),
-  ).toBe("none");
+      .locator(".brand-atmosphere span")
+      .first()
+      .evaluate((el) => getComputedStyle(el).animationName),
+  ).toBe("icon-breathe");
   await expect(page.locator(".story-reveal")).toBeVisible();
-  await page.goto("/sources");
-  await expect(
-    page.getByRole("heading", { name: "Здесь пока нет возможности." }),
-  ).toBeVisible();
 });

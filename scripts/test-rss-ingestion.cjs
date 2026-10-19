@@ -51,6 +51,9 @@ const endpointJs = ts.transpileModule(`${source}\nmodule.exports = { GET };`, { 
 vm.runInNewContext(endpointJs, endpointSandbox, { timeout: 1000 });
 const endpointGet = endpointSandbox.module.exports.GET;
 const tests = [
+ ['official FL and Freelancehunt project feeds stay projects across professions',()=>{for(const feed of ['https://www.fl.ru/rss/all.xml','https://freelancehunt.com/projects.rss'])assert.equal(classifyFeedItem('Монтаж ролика',feed,''),'project');}],
+ ['unsupported RSS currency is never relabelled as rubles',()=>{for(const text of ['Бюджет 2000 UAH','Оплата 8000 грн','Стоимость 10000 KZT'])assert.equal(extractBudget(text).min,null);}],
+
   ['blocks private IPv4', () => assert.equal(isPublicIp('10.1.2.3'), false)],
   ['blocks loopback IPv4', () => assert.equal(isPublicIp('127.0.0.1'), false)],
   ['blocks link-local IPv4', () => assert.equal(isPublicIp('169.254.1.1'), false)],

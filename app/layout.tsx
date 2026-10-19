@@ -1,3 +1,4 @@
+import { BrandAtmosphere } from "@/components/brand/BrandAtmosphere";
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/golos-text";
 import "./globals.css";
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body>
+        <BrandAtmosphere />
         <a className="skip-link" href="#main-content">
           К содержимому
         </a>

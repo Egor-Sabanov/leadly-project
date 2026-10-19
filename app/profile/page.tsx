@@ -11,7 +11,8 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { Plans } from "@/components/profile/Plans";
+import { ProfileTabs } from "@/components/profile/ProfileTabs";
+import { AvatarEditor } from "@/components/profile/AvatarEditor";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -269,12 +270,7 @@ export default function ProfilePage() {
           </div>
         </header>
 
-        <nav className="profile-section-nav" aria-label="Разделы профиля">
-          <a href="#about">О тебе</a>
-          <a href="#goals">Цели и поиск</a>
-          <a href="#preferences">Предпочтения</a>
-          <a href="#plans">Тарифы</a>
-        </nav>
+        <ProfileTabs />
 
         {loading ? (
           <div className="panel profile-loading">
@@ -298,6 +294,7 @@ export default function ProfilePage() {
                   </p>
                 </div>
               </div>
+              <AvatarEditor name={name} />
               <label className="profile-label">
                 Email аккаунта
                 <input value={email} readOnly />
@@ -378,25 +375,29 @@ export default function ProfilePage() {
                 <legend>Что искать?</legend>
                 <div className="work-type-grid">
                   {opportunityTypes.map((type) => (
-                    <button
-                      type="button"
+                    <label
                       key={type.value}
                       className={`work-type ${types.includes(type.value) ? "selected" : ""}`}
-                      aria-pressed={types.includes(type.value)}
-                      onClick={() => toggleType(type.value)}
                     >
-                      <span className="work-check">
-                        {types.includes(type.value) ? "✓" : ""}
+                      <input
+                        type="checkbox"
+                        checked={types.includes(type.value)}
+                        onChange={() => toggleType(type.value)}
+                      />
+                      <span>
+                        <strong>{type.label}</strong>
                       </span>
-                      <strong>{type.label}</strong>
-                    </button>
+                    </label>
                   ))}
                 </div>
               </fieldset>
               <label className="switch-row">
                 <span>
                   <strong>Только удалённые возможности</strong>
-                  <small>Скрывать предложения с обязательным офисом</small>
+                  <small>
+                    Показывать только задания с подтверждённым удалённым
+                    форматом
+                  </small>
                 </span>
                 <input
                   type="checkbox"
@@ -476,9 +477,7 @@ export default function ProfilePage() {
             </div>
           </form>
         )}
-        <div style={{ marginTop: 24 }}>
-          <Plans userId={userId} />
-        </div>
+        <div style={{ marginTop: 24 }}></div>
       </section>
     </main>
   );

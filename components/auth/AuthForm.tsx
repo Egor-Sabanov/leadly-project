@@ -1,5 +1,4 @@
 "use client";
-import { MotionToggle } from "@/components/brand/MotionToggle";
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
@@ -110,7 +109,6 @@ export function AuthForm({
     <main className="auth-shell">
       <header className="auth-header">
         <LeadlyLogo href="/" />
-        <MotionToggle />
       </header>
       <div className="auth-layout">
         <AuthStory />

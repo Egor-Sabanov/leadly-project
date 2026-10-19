@@ -48,7 +48,14 @@ const plans = [
     ],
   },
 ];
-export function Plans({ userId }: { userId: string }) {
+export function Plans({
+  userId,
+  requestedPlan = "",
+}: {
+  userId: string;
+  requestedPlan?: string;
+}) {
+  const [selected, setSelected] = useState(requestedPlan);
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   async function select(id: string) {
@@ -63,6 +70,7 @@ export function Plans({ userId }: { userId: string }) {
         .select("id")
         .single();
       if (error) throw error;
+      setSelected(id);
       setNotice(
         "Предпочтение сохранено. Деньги не списаны, подписка не оформлена. Платные функции ещё готовятся к запуску.",
       );
@@ -78,14 +86,14 @@ export function Plans({ userId }: { userId: string }) {
         <div className="eyebrow">ТВОЙ УРОВЕНЬ ВОЗМОЖНОСТЕЙ</div>
         <h2>Расти в своём темпе.</h2>
         <p className="muted">
-          Сейчас доступен бесплатный MVP. Платные планы — предварительный выбор:
-          оплата и командный доступ ещё не подключены.
+          Бесплатный план уже доступен. Платные подписки готовятся к запуску.
+          Можно сохранить интересующий тариф — без оплаты и списаний.
         </p>
       </div>
       <div className="plans-grid">
         {plans.map((p) => (
           <article
-            className={`plan-card ${p.id === "pro" ? "featured" : ""}`}
+            className={`plan-card ${p.id === "pro" ? "featured" : ""} ${selected === p.id ? "plan-selected" : ""}`}
             key={p.id}
           >
             <span className="badge">
@@ -120,7 +128,7 @@ export function Plans({ userId }: { userId: string }) {
                 ) : (
                   <ArrowUpRight size={14} />
                 )}
-                Выбрать предварительно
+                {selected === p.id ? "Выбор сохранён" : "Мне подходит"}
               </button>
             )}
           </article>

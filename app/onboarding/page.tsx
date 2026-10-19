@@ -5,14 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   LoaderCircle,
   Target,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { MotionToggle } from "@/components/brand/MotionToggle";
 import { LeadlyLogo } from "@/components/brand/LeadlyLogo";
 
 import { DisciplinePreset } from "@/components/profile/DisciplinePreset";
@@ -45,7 +43,7 @@ export default function OnboardingPage() {
     "project",
     "client",
   ]);
-  const [remoteOnly, setRemoteOnly] = useState(true);
+  const [remoteOnly, setRemoteOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -164,7 +162,6 @@ export default function OnboardingPage() {
     <main className="onboarding-shell">
       <header className="onboarding-header">
         <LeadlyLogo />
-        <MotionToggle />
       </header>
       {loading ? (
         <div className="onboarding-loading">
@@ -241,28 +238,29 @@ export default function OnboardingPage() {
               <legend>Какие возможности искать?</legend>
               <div className="work-type-grid">
                 {workTypes.map((type) => (
-                  <button
-                    type="button"
+                  <label
                     key={type.value}
                     className={`work-type ${selectedTypes.includes(type.value) ? "selected" : ""}`}
-                    aria-pressed={selectedTypes.includes(type.value)}
-                    onClick={() => toggleType(type.value)}
                   >
-                    <span className="work-check">
-                      {selectedTypes.includes(type.value) && (
-                        <Check size={13} />
-                      )}
+                    <input
+                      type="checkbox"
+                      checked={selectedTypes.includes(type.value)}
+                      onChange={() => toggleType(type.value)}
+                    />
+                    <span>
+                      <strong>{type.label}</strong>
+                      <small>{type.note}</small>
                     </span>
-                    <strong>{type.label}</strong>
-                    <small>{type.note}</small>
-                  </button>
+                  </label>
                 ))}
               </div>
             </fieldset>
             <label className="switch-row">
               <span>
                 <strong>Только удалённые возможности</strong>
-                <small>Не показывать предложения с обязательным офисом</small>
+                <small>
+                  Показывать только задания, где удалённый формат подтверждён
+                </small>
               </span>
               <input
                 type="checkbox"

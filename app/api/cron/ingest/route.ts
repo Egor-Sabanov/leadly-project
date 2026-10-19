@@ -53,6 +53,10 @@ function extractBudget(text: string): Budget {
     confidence: "none" as const,
   };
 
+  // Unsupported currencies must never be displayed as a ruble budget.
+  if (/\bUAH\b|₴|грн|грив|\bBYN\b|\bKZT\b|тенге/i.test(normalized))
+    return empty;
+
   const amount = String.raw`(?:\d{1,3}(?:[ ,]\d{3})+|\d{3,9})(?:[.,]\d{1,2})?`;
   const moneyWord = String.raw`(?:бюджет|стоимость|цена|оплата|гонорар|зарплата|доход|вознаграждение|ставка|budget|price|pay|salary|rate)`;
   const currencyWord = String.raw`(?:₽|руб(?:лей|ля|ль|\.)?|\$|USD|€|EUR|RUB|доллар(?:ов|а)?|евро)`;
@@ -402,6 +406,11 @@ function classifyFeedItem(
   const host = feedUrl.hostname.toLowerCase().replace(/^www\./, "");
   const path = feedUrl.pathname.replace(/\/+$/, "") || "/";
 
+  if (
+    (host === "fl.ru" && path === "/rss/all.xml") ||
+    (host === "freelancehunt.com" && path === "/projects.rss")
+  )
+    return "project";
   // These endpoints are employment-job feeds by their published purpose.
   if (
     host === "weworkremotely.com" ||
@@ -452,6 +461,18 @@ function sourceIdentity(sourceUrl: URL): {
 } {
   const host = sourceUrl.hostname.toLowerCase().replace(/^www\./, "");
   const path = sourceUrl.pathname.replace(/\/+$/, "") || "/";
+  if (host === "fl.ru" && path === "/rss/all.xml")
+    return {
+      name: "FL.ru",
+      slug: "fl-ru-projects",
+      baseUrl: "https://www.fl.ru",
+    };
+  if (host === "freelancehunt.com" && path === "/projects.rss")
+    return {
+      name: "Freelancehunt",
+      slug: "freelancehunt-rss",
+      baseUrl: "https://freelancehunt.com",
+    };
   if (host === "hnrss.org" && path === "/whoishiring/freelance") {
     return {
       name: "Hacker News Freelance",
@@ -887,7 +908,10 @@ export async function GET(request: Request) {
     );
   }
 
-  const feeds = (process.env.LEADLY_RSS_FEEDS || "")
+  const feeds = (
+    process.env.LEADLY_RSS_FEEDS ??
+    "https://www.fl.ru/rss/all.xml\nhttps://freelancehunt.com/projects.rss"
+  )
     .split(/\r?\n|,/)
     .map((v) => v.trim())
     .filter(Boolean)

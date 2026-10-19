@@ -1,5 +1,4 @@
 "use client";
-import { MotionToggle } from "@/components/brand/MotionToggle";
 
 import { useEffect } from "react";
 import Link from "next/link";
@@ -28,9 +27,6 @@ export function BrandWelcome({
   }, [router, destination]);
   return (
     <main className="brand-welcome">
-      <div className="welcome-motion-toggle">
-        <MotionToggle />
-      </div>
       <div className="welcome-brand-word">LEADLY</div>
       <BrandMotion variant="welcome" />
       <div className="welcome-message" role="status">

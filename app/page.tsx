@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WorkTasks } from "@/components/workspace/WorkTasks";
 import { Suspense } from "react";
 import { IndustryNews } from "@/components/workspace/IndustryNews";
 import { BrandMotion } from "@/components/brand/BrandMotion";
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { getAccount, formatMoney, statusLabels } from "@/lib/workspace";
 import { SetupScreen } from "@/components/layout/SetupScreen";
+import Image from "next/image";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { QueryError } from "@/components/layout/QueryError";
@@ -32,7 +34,7 @@ export default async function Home() {
     supabase
       .from("profiles")
       .select(
-        "display_name,headline,target_monthly_income,currency_code,timezone,onboarding_completed",
+        "display_name,headline,target_monthly_income,currency_code,timezone,onboarding_completed,avatar_url",
       )
       .eq("id", user.id)
       .maybeSingle(),
@@ -85,6 +87,18 @@ export default async function Home() {
           description="Твои задания, текущие договорённости и результаты."
           action={
             <div className="topbar-actions">
+              {p?.avatar_url?.startsWith("/api/profile/avatar?") && (
+                <Link href="/profile" aria-label="Открыть профиль">
+                  <Image
+                    unoptimized
+                    src={p.avatar_url}
+                    className="header-avatar"
+                    width={38}
+                    height={38}
+                    alt="Твоя аватарка"
+                  />
+                </Link>
+              )}
               <span className="signed-in-email">{user.email}</span>
               <SignOutButton />
             </div>
@@ -172,6 +186,9 @@ export default async function Home() {
             </div>
           ))}
         </div>
+        <Suspense fallback={<div className="panel">Загружаем твои дела…</div>}>
+          <WorkTasks compact />
+        </Suspense>
         <div className="two-col">
           <section className="panel">
             <div className="section-heading" style={{ marginTop: 0 }}>

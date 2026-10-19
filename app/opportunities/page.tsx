@@ -1,4 +1,5 @@
 import { loadRussianOpportunities } from "@/lib/russian-opportunities";
+import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { getAccount } from "@/lib/workspace";
 import { SetupScreen } from "@/components/layout/SetupScreen";
@@ -20,7 +21,12 @@ function metadataString(metadata: RawMetadata, key: string): string | null {
   return typeof value === "string" ? value : null;
 }
 
-export default async function OpportunitiesPage() {
+export default async function OpportunitiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ format?: string }>;
+}) {
+  const allFormats = (await searchParams).format === "all";
   const account = await getAccount();
   if (!account) return <SetupScreen />;
   const { supabase, user } = account;
@@ -97,7 +103,7 @@ export default async function OpportunitiesPage() {
     .filter((name): name is string => Boolean(name));
 
   const eligibleOpportunities = (opportunities || []).filter(
-    (item) => !preferences?.remote_only || item.remote,
+    (item) => allFormats || !preferences?.remote_only || item.remote,
   );
   const scoredRows = eligibleOpportunities.map((item) => {
     const metadata = asMetadata(item.raw_metadata);
@@ -161,6 +167,19 @@ export default async function OpportunitiesPage() {
     <main className="app-shell">
       <Sidebar activeHref="/opportunities" />
       <section className="content profile-content">
+        <div className="feed-format-control">
+          <span>
+            {allFormats || !preferences?.remote_only
+              ? "Все форматы работы · условия уточняй у заказчика"
+              : "Только подтверждённая удалённая работа"}
+          </span>
+          <Link
+            className="text-link"
+            href={allFormats ? "/opportunities" : "/opportunities?format=all"}
+          >
+            {allFormats ? "Мои настройки поиска" : "Показать все форматы"}
+          </Link>
+        </div>
         <header className="topbar">
           <div>
             <div className="eyebrow">ПОДБОРКА</div>

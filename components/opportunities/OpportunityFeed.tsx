@@ -1,4 +1,5 @@
 "use client";
+import { AnimatedIcon } from "@/components/brand/AnimatedIcon";
 
 import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
@@ -542,7 +543,10 @@ export function OpportunityFeed({
       )}
 
       <div className="feed-heading">
-        <h2>{demo ? "Примеры возможностей" : "Подходящие предложения"}</h2>
+        <h2>
+          <AnimatedIcon kind="search" />{" "}
+          {demo ? "Примеры возможностей" : "Подходящие предложения"}
+        </h2>
         <span>Найдено: {filtered.length}</span>
       </div>
 
@@ -658,8 +662,8 @@ export function OpportunityFeed({
                   </span>
                   <span>
                     {item.published_at
-                      ? `Опубликовано: ${new Date(item.published_at).toLocaleDateString("ru-RU")}`
-                      : `Добавлено: ${new Date(item.discovered_at).toLocaleDateString("ru-RU")}`}
+                      ? `Опубликовано: ${new Date(item.published_at).toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })}`
+                      : `Добавлено: ${new Date(item.discovered_at).toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow" })}`}
                   </span>
                 </div>
                 {oldListing && (

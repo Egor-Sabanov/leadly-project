@@ -1,5 +1,4 @@
 "use client";
-import { MotionToggle } from "@/components/brand/MotionToggle";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -59,9 +58,9 @@ export function Sidebar({ activeHref = "/" }: { activeHref?: string }) {
         </div>
         <span className="nav-caption">РАБОТА</span>
         <nav className="sidebar-nav" aria-label="Основная навигация">
-          {mainNavigation.map(({ href, label, icon: Icon }, index) => (
+          {mainNavigation.map(({ href, label, icon: Icon }) => (
             <div key={href}>
-              {index === 5 && (
+              {href === "/analytics" && (
                 <span className="nav-caption nav-group-caption">
                   УПРАВЛЕНИЕ
                 </span>
@@ -99,7 +98,6 @@ export function Sidebar({ activeHref = "/" }: { activeHref?: string }) {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <MotionToggle />
           <div className="sidebar-signature">
             LEADLY<span>Заказы · проекты · клиенты</span>
           </div>

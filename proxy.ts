@@ -29,6 +29,7 @@ export async function proxy(request: NextRequest) {
     "/profile",
     "/opportunities",
     "/crm",
+    "/tasks",
     "/clients",
     "/analytics",
     "/revenue",

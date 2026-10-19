@@ -1,7 +1,9 @@
 "use client";
 
+import { AnimatedIcon } from "@/components/brand/AnimatedIcon";
+import Image from "next/image";
 import { useState } from "react";
-import { ArrowUpRight, Newspaper } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import type { NewsItem } from "@/lib/industry-news";
 
 type Source = { id: string; label: string; publisher: string; site: string };
@@ -36,7 +38,7 @@ export function NewsFeed({
           <span className="eyebrow">ЖУРНАЛ</span>
           <h2 id="industry-news-title">В индустрии</h2>
         </div>
-        <Newspaper size={22} aria-hidden="true" />
+        <AnimatedIcon kind="signal" />
       </div>
       <div
         className="news-categories"
@@ -65,6 +67,15 @@ export function NewsFeed({
               target="_blank"
               rel="noopener noreferrer"
             >
+              <Image
+                unoptimized
+                className="news-cover"
+                src={`/news/${item.category}.svg`}
+                alt=""
+                width="600"
+                height="240"
+                loading="lazy"
+              />
               <span className="news-category">
                 {sources.find((source) => source.id === item.category)?.label}
                 <ArrowUpRight size={17} aria-hidden="true" />
