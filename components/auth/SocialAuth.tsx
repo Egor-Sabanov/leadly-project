@@ -52,7 +52,7 @@ export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
       <p id="social-auth-status" className="social-auth-note">
         {active
           ? "Выбери сервис для безопасного входа. Пароль от него остаётся у провайдера."
-          : "Вход через сервисы пока не подключён владельцем приложения. Регистрация по почте доступна после подключения аккаунтов."}
+          : "Вход через сервисы пока не подключён владельцем приложения."}
       </p>
       <div className="auth-divider">
         <span>или по электронной почте</span>

@@ -182,7 +182,7 @@ export default async function OpportunitiesPage() {
               бюджета, валюту и период оплаты.
             </p>
           </div>
-          <span className="opportunities-count">{items.length} в базе</span>
+          <span className="opportunities-count">{items.length} в подборке</span>
         </div>
 
         {stateError ? (
@@ -197,7 +197,14 @@ export default async function OpportunitiesPage() {
           </div>
         ) : (
           <>
-            <OpportunityFeed opportunities={items} />
+            <OpportunityFeed
+              opportunities={items}
+              emptyBecauseRemoteOnly={Boolean(
+                preferences?.remote_only &&
+                  opportunities.length &&
+                  !eligibleOpportunities.length,
+              )}
+            />
             {scoreError && (
               <p className="auth-message" role="status">
                 Оценки рассчитаны для этой загрузки, но не удалось сохранить их

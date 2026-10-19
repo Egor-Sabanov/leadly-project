@@ -423,6 +423,7 @@ export default function AiOutreachPage() {
               </div>
               <textarea
                 className="outreach-draft"
+                aria-label="Текст отклика"
                 rows={12}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}

@@ -206,9 +206,11 @@ function readableScoreText(value: string): string {
 export function OpportunityFeed({
   opportunities,
   demo = false,
+  emptyBecauseRemoteOnly = false,
 }: {
   opportunities: OpportunityItem[];
   demo?: boolean;
+  emptyBecauseRemoteOnly?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
@@ -543,15 +545,24 @@ export function OpportunityFeed({
             <Search size={22} />
           </div>
           <h2>
-            {opportunities.length === 0
-              ? "Пока нет реальных предложений"
-              : "Ничего не найдено"}
+            {emptyBecauseRemoteOnly
+              ? "Нет предложений с подтверждённой удалённой работой"
+              : opportunities.length === 0
+                ? "Пока нет реальных предложений"
+                : "Ничего не найдено"}
           </h2>
           <p>
-            {opportunities.length === 0
-              ? "В ленте пока нет активных предложений. Проверь подключённые источники или вернись позже."
-              : "Измени запрос или фильтры. Сохранённые предложения появятся здесь после добавления."}
+            {emptyBecauseRemoteOnly
+              ? "В профиле выбран только удалённый формат. В текущей подборке есть задания, но у них этот формат не указан. Измени предпочтение или вернись позже."
+              : opportunities.length === 0
+                ? "В ленте пока нет активных предложений. Проверь подключённые источники или вернись позже."
+                : "Измени запрос или фильтры. Сохранённые предложения появятся здесь после добавления."}
           </p>
+          {emptyBecauseRemoteOnly && (
+            <Link href="/profile" className="ghost">
+              Настроить поиск в профиле
+            </Link>
+          )}
         </div>
       ) : (
         <div className="opportunities-feed-list">
