@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { authCookieOptions } from "../auth-cookies";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
@@ -13,6 +14,10 @@ export async function createSupabaseServerClient() {
     );
   }
   return createServerClient(url, key, {
+    cookieOptions: authCookieOptions(
+      process.env.LEADLY_SITE_URL,
+      process.env.VERCEL === "1",
+    ),
     cookies: {
       getAll() {
         return cookieStore.getAll();

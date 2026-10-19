@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { needsSocialPrivacyNotice } from "@/lib/privacy";
+import { authCookieOptions } from "@/lib/auth-cookies";
 /** Refresh cookie sessions in the response, where cookie writes are supported. */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -10,6 +11,10 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return response;
   const supabase = createServerClient(url, key, {
+    cookieOptions: authCookieOptions(
+      request.nextUrl.origin,
+      process.env.VERCEL === "1",
+    ),
     cookies: {
       getAll() {
         return request.cookies.getAll();

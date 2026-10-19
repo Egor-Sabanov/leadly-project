@@ -9,6 +9,32 @@ const { isRussianOpportunity: ru } = load(
 const { socialAuthCatalog, enabledNativeProviders } = load(
   path.join(root, "lib/auth-providers.ts"),
 );
+const { authCookieOptions } = load(path.join(root, "lib/auth-cookies.ts"));
+const cookieCases = [
+  [
+    "HTTPS and Vercel cookies are Secure while local HTTP remains testable",
+    () => {
+      assert.equal(authCookieOptions("https://leadly.example").secure, true);
+      assert.equal(
+        authCookieOptions("http://localhost:3000", true).secure,
+        true,
+      );
+      assert.equal(authCookieOptions("", true).secure, true);
+      assert.equal(authCookieOptions("http://127.0.0.1:3000").secure, false);
+      assert.equal(authCookieOptions().secure, false);
+    },
+  ],
+  [
+    "auth cookie scope preserves OAuth navigation and browser SDK sessions",
+    () => {
+      const options = authCookieOptions("https://leadly.example");
+      assert.equal(options.sameSite, "lax");
+      assert.equal(options.path, "/");
+      assert.equal(options.domain, undefined);
+      assert.equal(options.httpOnly, undefined);
+    },
+  ],
+];
 const languageCases = [
   [
     "Russian development project",
@@ -110,6 +136,7 @@ const tests = languageCases.map(([name, title, description, expected]) => [
   name,
   () => assert.equal(ru({ title, description }), expected),
 ]);
+tests.push(...cookieCases);
 tests.push(
   [
     "only literal enabled provider flags activate buttons",
@@ -471,6 +498,7 @@ tests.push([
       "https://testproject.supabase.co",
       "public-test-key",
       {
+        cookieOptions: authCookieOptions("https://app.example"),
         cookies: { getAll: () => [], setAll: (items) => writes.push(...items) },
       },
     );
@@ -524,6 +552,14 @@ tests.push([
     assert.ok(destination.searchParams.get("code_challenge"));
     assert.equal(destination.searchParams.get("code_challenge_method"), "s256");
     assert.ok(writes.some((c) => c.name.includes("code-verifier") && c.value));
+    assert.ok(
+      writes.some(
+        (c) =>
+          c.options.secure === true &&
+          c.options.sameSite === "lax" &&
+          c.options.path === "/",
+      ),
+    );
     client.auth.signInWithOAuth = async () => ({
       data: { url: "https://evil.example/authorize" },
       error: null,

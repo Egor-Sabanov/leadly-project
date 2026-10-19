@@ -1,0 +1,12 @@
+.git
+.github
+.env*
+.vercel
+node_modules
+.next
+test-results
+playwright-report
+docs
+e2e
+*.log
+.codex-backups

@@ -11,7 +11,7 @@
     "test:scoring": "node test-opportunity-scoring-v14.cjs",
     "test:mvp": "node scripts/test-mvp.cjs",
     "test:db": "node scripts/test-database.cjs",
-    "test": "npm run test:rss && npm run test:scoring && npm run test:mvp && npm run test:db && npm run test:russian-auth && npm run test:discovery && npm run test:news && npm run test:assets",
+    "test": "npm run test:rss && npm run test:scoring && npm run test:mvp && npm run test:db && npm run test:russian-auth && npm run test:discovery && npm run test:news && npm run test:assets && npm run test:deployment",
     "check": "npm run lint && npm test && npm run build",
     "test:ui": "playwright test",
     "test:russian-auth": "node scripts/test-russian-auth.cjs",
@@ -21,7 +21,9 @@
     "setup:profile-storage": "node --env-file-if-exists=.env.local scripts/setup-profile-storage.cjs",
     "sources:sync": "node --env-file-if-exists=.env.local scripts/sync-sources.cjs",
     "test:assets": "node scripts/test-account-assets.cjs",
-    "check:readiness": "node --env-file-if-exists=.env.local scripts/check-readiness.cjs"
+    "check:readiness": "node --env-file-if-exists=.env.local scripts/check-readiness.cjs",
+    "check:deployment": "node --env-file-if-exists=.env.local scripts/check-deployment.cjs",
+    "test:deployment": "node scripts/test-deployment.cjs"
   },
   "dependencies": {
     "@fontsource-variable/golos-text": "5.3.0",
@@ -45,6 +47,6 @@
     "typescript": "5.8.2"
   },
   "engines": {
-    "node": ">=22.11.0"
+    "node": "24.x"
   }
 }

@@ -89,3 +89,5 @@ npm run test:ui
 Подготовка обновления живой базы по аудиту владельца: [DATABASE-UPDATE](docs/DATABASE-UPDATE.md). SQL применён владельцем; [24 живые API-проверки](docs/LIVE-DATABASE-VERIFICATION.md) прошли с очисткой тестовых аккаунтов. Живой вход через Chromium также проверен после настройки TLS и серверного прокси. Подробный состав проверок и оставшиеся ограничения — в том же отчёте.
 
 Финальные детали интерфейса, уведомление о cookies, фото рядом с приветствием и настройки социального входа: [AUTH-LAUNCH](docs/AUTH-LAUNCH.md).
+
+Развёртывание на Vercel, безопасная конфигурация и проверка HTTPS/OAuth: [VERCEL-LAUNCH](docs/VERCEL-LAUNCH.md). После размещения: `npm run check:deployment -- https://адрес-сайта`.

@@ -2,6 +2,7 @@
 const { createClient } = require("@supabase/supabase-js");
 const { createTsLoader } = require("./ts-loader.cjs");
 const path = require("node:path");
+const { siteOrigin } = require("./deployment-probe.cjs");
 (async () => {
   const checks = [];
   const add = (id, status, detail) => checks.push({ id, status, detail });
@@ -172,20 +173,23 @@ const path = require("node:path");
   }
   let productionOrigin = false;
   try {
-    const site = new URL(process.env.LEADLY_SITE_URL);
-    productionOrigin =
-      site.protocol === "https:" &&
-      !["localhost", "127.0.0.1", "[::1]"].includes(site.hostname) &&
-      site.pathname === "/";
+    siteOrigin(process.env.LEADLY_SITE_URL);
+    productionOrigin = true;
   } catch {
     /* Report only readiness, never environment values. */
   }
+  const invalidHostedOrigin =
+    process.env.VERCEL === "1" &&
+    !!process.env.LEADLY_SITE_URL &&
+    !productionOrigin;
   add(
     "production_origin",
-    productionOrigin ? "pass" : "pending",
+    invalidHostedOrigin ? "fail" : productionOrigin ? "pass" : "pending",
     productionOrigin
       ? "HTTPS адрес приложения задан; доступность и callback проверяются отдельно."
-      : "Перед публичным запуском нужен постоянный HTTPS адрес приложения.",
+      : invalidHostedOrigin
+        ? "На Vercel задан неверный LEADLY_SITE_URL. Нужен точный HTTPS origin опубликованного сайта без localhost."
+        : "Перед публичным запуском нужен постоянный HTTPS адрес приложения.",
   );
   add(
     "scheduled_ingestion",
