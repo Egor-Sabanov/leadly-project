@@ -12,7 +12,7 @@
     "test:mvp": "node scripts/test-mvp.cjs",
     "test:db": "node scripts/test-database.cjs",
     "test": "npm run test:rss && npm run test:scoring && npm run test:mvp && npm run test:db && npm run test:russian-auth && npm run test:auth && npm run test:discovery && npm run test:news && npm run test:assets && npm run test:deployment && npm run test:ingestion && npm run test:telegram && npm run test:feed",
-    "test:auth": "node scripts/test-auth-completion.cjs",
+    "test:auth": "node scripts/test-auth-completion.cjs && node scripts/test-yandex-userinfo.cjs",
     "check": "npm run lint && npm test && npm run build",
     "test:ui": "playwright test",
     "test:russian-auth": "node scripts/test-russian-auth.cjs",

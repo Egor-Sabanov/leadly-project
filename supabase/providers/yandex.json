@@ -1,0 +1,12 @@
+{
+  "provider_type": "oauth2",
+  "identifier": "custom:yandex",
+  "name": "Яндекс ID",
+  "authorization_url": "https://oauth.yandex.ru/authorize",
+  "token_url": "https://oauth.yandex.ru/token",
+  "userinfo_url": "https://leadly-topaz-seven.vercel.app/api/auth/yandex/userinfo",
+  "scopes": ["login:info", "login:email"],
+  "pkce_enabled": true,
+  "email_optional": false,
+  "enabled": false
+}
