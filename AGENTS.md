@@ -43,3 +43,8 @@
 
 
 Владелец подтвердил0013 Success. Перед deployment выполняются свежие12 live checks/cleanup и525 unit/SQL/lint/build. Автопроверка выбранных Telegram-каналов добавлена без новой SQL: только Bot API getMe/getChat/getChatMember, активный source лишь при членстве именно нашего бота; отзыв отключает source; env rules сохраняются. Это не обходит отсутствие доступа. Kwork /projects,/project по официальной OpenAPI требуют token; доступа/договора нет. Новый snapshot родитель402c64d3247e424188bb8fba13d7b2aad3abffc1; runtime пока76e1b25, scheduler off. Дальше deploy→public fixtures/cleanup→enable RPC→natural tick, без новых тестовых opt-ins после включения.
+
+
+Последнее подтверждённое состояние, 20.10.2026 22:30 МСК: runtime42debe8212b6fb3708b10aa72689aaeea59824ae / READY dpl_DjQqxGR69Xe9eNe9ydSp29ZH58uj; scheduler ВКЛЮЧЁН, */10 * * * *, natural run fa420232-736d-4df6-b7f6-8ef0d6c8b989. FH47/3, Хабр48/2, FL403; partial, health правильно unhealthy. Автодоставка1 принята Telegram, ошибок0, empty1; владелец явно выбрал updates и подтвердил прежний VK с данными. Нового VK у него нет — не считать unmapped e2e проверенным. @distantsiya/@designhunters access_required. Kwork требует одобренного token/договора. 525 +12 live(cleaned)+14 UI+36 offline+23 public прошли, тестовых отправок0; одна продуктовая отправка в natural tick. Больше не выполнять установочные SQL или тестовые opt-ins на включённом cron. Подробности — последний блок TECHNICAL-RELEASE.md; тарифы после оставшихся технических критериев.
+
+Владелец подтвердил настоящую автоматическую подборку после natural tick: «Да — карточки пришли, задание открывается». Карточка и переход проверены в Telegram, не только mocked Bot API.
