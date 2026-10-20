@@ -117,6 +117,9 @@ function open(
   }
 }
 const unix = () => Math.floor(Date.now() / 1000);
+// Server-only capsules share encryption, but their AAD separates login, linking
+// and provider exchange. A capsule of one kind cannot be used as another.
+export { seal as sealVKFlow, open as openVKFlow };
 const callback = (c: VKConfig) => new URL("/auth/vk/callback", c.site).href;
 const authCallback = (c: VKConfig) =>
   new URL("/auth/v1/callback", c.supabase).href;

@@ -516,6 +516,8 @@ tests.push([
         createSupabaseServerClient: async () => client,
       },
       "@/lib/request-guards": { requestOrigin: () => env.LEADLY_SITE_URL },
+      "@/lib/vk-oauth": { vkConfig: () => null },
+      "@/lib/vk-account-oauth": { startVKAccountFlow: () => { throw new Error("Google must not start a VK flow"); }, vkPrivateHeaders: {} },
     };
     const file = path.join(root, "app/auth/social/[provider]/route.ts");
     const vm = require("node:vm");

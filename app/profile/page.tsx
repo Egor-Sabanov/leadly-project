@@ -19,6 +19,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { DisciplinePreset } from "@/components/profile/DisciplinePreset";
 import { mergeProfileSkills } from "@/lib/disciplines";
 import { TelegramConnection } from "@/components/telegram/TelegramConnection";
+import { VKConnection } from "@/components/profile/VKConnection";
 
 type Profile = {
   avatar_url: string | null;
@@ -415,6 +416,7 @@ export default function ProfilePage() {
             </section>
 
             <TelegramConnection />
+            <VKConnection />
 
             <section className="panel profile-section" id="preferences">
               <div className="profile-section-heading">

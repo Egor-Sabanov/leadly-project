@@ -37,7 +37,7 @@ export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
         <span>Другие способы входа</span>
       </div>
       <div className="social-auth-grid">
-        {active.map(o => <Link key={o.id} href={`/auth/social/${o.id}`} className="social-auth-button" aria-label={`Войти через ${o.label}`} title={o.label}><ProviderIcon id={o.id} /></Link>)}
+        {active.map(o => <Link key={o.id} prefetch={false} href={`/auth/social/${o.id}`} className="social-auth-button" aria-label={`Войти через ${o.label}`} title={o.label}><ProviderIcon id={o.id} /></Link>)}
       </div>
     </section>
   );
