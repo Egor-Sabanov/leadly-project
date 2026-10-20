@@ -1,5 +1,6 @@
 import { setupTelegramWebhook } from "@/lib/telegram-webhook-setup";
-import { telegramConfigured } from "@/lib/telegram-server";
+import { dispatchTelegramNotifications } from "@/lib/telegram-delivery";
+import { telegramAdmin, telegramConfigured } from "@/lib/telegram-server";
 import { trackedIngestion } from "@/lib/runtime-health";
 import { opportunityDisciplines } from "@/lib/disciplines";
 import { opportunityWorkFormat } from "@/lib/opportunity-filters";
@@ -1153,14 +1154,25 @@ export async function GET(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(12000) }) },
   });
-  const id = randomUUID();
+  const id = randomUUID(), outerStarted = Date.now();
   try { return await trackedIngestion(db, id, async () => {
     const result = await ingest(request, id);
     if (telegramConfigured()) {
+      if (Date.now() < outerStarted + 240000) {
+        try {
+          const bot = await setupTelegramWebhook({ token: process.env.TELEGRAM_BOT_TOKEN!, secret: process.env.TELEGRAM_WEBHOOK_SECRET!, siteUrl: process.env.LEADLY_SITE_URL || "", expectedUsername: process.env.TELEGRAM_BOT_USERNAME, rules: [], apply: true, commandsOnly: true });
+          console.info(JSON.stringify({ event: "telegram_commands_checked", runId: id, ...bot }));
+        } catch { console.info(JSON.stringify({ event: "telegram_commands_check_failed", runId: id })); }
+      }
+      let notifications;
       try {
-        const bot = await setupTelegramWebhook({ token: process.env.TELEGRAM_BOT_TOKEN!, secret: process.env.TELEGRAM_WEBHOOK_SECRET!, siteUrl: process.env.LEADLY_SITE_URL || "", expectedUsername: process.env.TELEGRAM_BOT_USERNAME, rules: [], apply: true, commandsOnly: true });
-        console.info(JSON.stringify({ event: "telegram_commands_checked", runId: id, ...bot }));
-      } catch { console.info(JSON.stringify({ event: "telegram_commands_check_failed", runId: id })); }
+        const deadline = Math.min(Date.now() + 35000, outerStarted + 265000);
+        notifications = await dispatchTelegramNotifications(telegramAdmin(deadline), { token: process.env.TELEGRAM_BOT_TOKEN!, botUsername: process.env.TELEGRAM_BOT_USERNAME!, site: process.env.LEADLY_SITE_URL || "", deadline });
+      } catch { notifications = { sent: 0, empty: 0, blocked: 0, pending: 0, failed: 1, uncertain: 0 }; }
+      console.info(JSON.stringify({ event: "telegram_delivery_finished", runId: id, ...notifications }));
+      const body = await result.json();
+      const partial = notifications.pending > 0 || notifications.failed > 0 || notifications.uncertain > 0;
+      return NextResponse.json({ ...body, ...(partial && body.status === "completed" ? { ok: false, status: "partial" } : {}), notificationsSent: notifications.sent, notificationsPending: notifications.pending, notificationsFailed: notifications.failed, notificationsUncertain: notifications.uncertain, durationMs: Date.now() - outerStarted }, { status: partial && result.ok ? 502 : result.status, headers: { "Cache-Control": "no-store" } });
     }
     return result;
   }); }

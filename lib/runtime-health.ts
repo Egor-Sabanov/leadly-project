@@ -16,7 +16,7 @@ export async function trackedIngestion(db: SupabaseClient, id: string, operation
     const body: unknown = await response.clone().json();
     if (isRecord(body)) {
       if (["completed", "partial", "failed"].includes(String(body.status))) status = String(body.status);
-      for (const key of ["feedsProcessed", "feedsFailed", "imported", "skipped", "durationMs"]) {
+      for (const key of ["feedsProcessed", "feedsFailed", "imported", "skipped", "durationMs", "notificationsSent", "notificationsPending", "notificationsFailed", "notificationsUncertain"]) {
         if (Number.isSafeInteger(body[key]) && Number(body[key]) >= 0) summary[key] = Number(body[key]);
       }
     }

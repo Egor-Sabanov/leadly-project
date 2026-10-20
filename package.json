@@ -27,7 +27,7 @@
     "test:deployment": "node scripts/test-deployment.cjs",
     "test:ingestion": "node scripts/test-scheduled-ingestion.cjs && node scripts/test-runtime-health.cjs",
     "test:feed": "node scripts/test-feed-selection.cjs",
-    "test:telegram": "node scripts/test-telegram-security.cjs && node scripts/test-telegram-database.cjs && node scripts/test-telegram-workspace.cjs && node scripts/test-telegram-command-sync.cjs && node scripts/test-telegram-menu.cjs",
+    "test:telegram": "node scripts/test-telegram-security.cjs && node scripts/test-telegram-database.cjs && node scripts/test-telegram-workspace.cjs && node scripts/test-telegram-command-sync.cjs && node scripts/test-telegram-menu.cjs && node scripts/test-telegram-notifications-db.cjs && node scripts/test-telegram-delivery.cjs && node scripts/test-telegram-notification-api.cjs",
     "check:operations": "node --env-file-if-exists=.env.local scripts/check-operations.cjs",
     "check:auth-site": "node --env-file-if-exists=.env.local scripts/check-auth-site.cjs"
   },

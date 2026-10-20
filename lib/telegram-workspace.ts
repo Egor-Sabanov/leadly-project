@@ -49,6 +49,14 @@ export async function telegramWorkspace(command: WorkspaceCommand, db: SupabaseC
     if (!valid.length) return command === "saved" ? "📌 Сохранённых заданий пока нет. Отметь интересное задание в LEADLY — оно появится здесь." : "💼 Проектов и откликов пока нет. Выбери задание в приложении и сохрани следующий шаг.";
     return (command === "saved" ? "📌 Твои сохранённые задания" : "💼 Твои проекты и отклики") + "\n\n" + valid.slice(0, 5).map(row => `• ${clean(row.opportunities!.title)}${command === "projects" ? " — " + labels[row.status] : ""}`).join("\n") + "\n\nКарточки, заметки и статусы — в приложении.";
   }
+  const { rows, selection } = await telegramOpportunityRows(db, id, profile.data);
+  if (!rows.length) return selection.configured ? "🔎 Сейчас нет заданий по твоему профилю. В приложении можно открыть «Все задания» или уточнить навыки." : "🔎 Сейчас нет доступных заданий. Попробуй открыть ленту позже.";
+  return (selection.configured ? "🔎 Задания по твоему профилю" : "🔎 Задания из общей ленты") + "\n\n" + rows.slice(0, 5).map(row => "• " + clean(row.title)).join("\n") + "\n\nУсловия и актуальность проверь в карточке и первоисточнике. Полная лента — в приложении.";
+}
+
+
+export type TelegramProfile = { headline?: string | null; skills_summary?: string | null; onboarding_completed?: boolean | null; timezone?: string | null };
+export async function telegramOpportunityRows(db: SupabaseClient, id: string, profile: TelegramProfile | null) {
   const [feed, preferences, skillRows, serviceRows] = await Promise.all([
     loadRussianOpportunities(db, 500),
     db.from("user_preferences").select("preferred_opportunity_types").eq("user_id", id).maybeSingle(),
@@ -58,13 +66,12 @@ export async function telegramWorkspace(command: WorkspaceCommand, db: SupabaseC
   if (feed.error || preferences.error || skillRows.error || serviceRows.error) throw new Error("Storage unavailable");
   const skills = (skillRows.data || []) as unknown as { skills: { name: string } | null }[];
   const services = (serviceRows.data || []) as unknown as { services: { name: string } | null }[];
-  const skillNames = [...skills.map(row => row.skills?.name || ""), ...(profile.data?.skills_summary || "").split(/[,;\n]+/)].map(v => v.trim()).filter(Boolean);
+  const skillNames = [...skills.map(row => row.skills?.name || ""), ...(profile?.skills_summary || "").split(/[,;\n]+/)].map(v => v.trim()).filter(Boolean);
   const serviceNames = services.map(row => row.services?.name || "").filter(Boolean);
-  const selection = profileOpportunitySelection({ completed: profile.data?.onboarding_completed, headline: profile.data?.headline, skills: skillNames, services: serviceNames, types: preferences.data?.preferred_opportunity_types });
+  const selection = profileOpportunitySelection({ completed: profile?.onboarding_completed, headline: profile?.headline, skills: skillNames, services: serviceNames, types: preferences.data?.preferred_opportunity_types });
   const rows = feed.data.filter(item => {
-    const score = scoreOpportunity({ headline: profile.data?.headline, skillNames, serviceNames }, item);
+    const score = scoreOpportunity({ headline: profile?.headline, skillNames, serviceNames }, item);
     return matchesProfileSelection({ type: item.type, matched_keywords: score.explanation.matched_keywords }, opportunityDisciplines(item), selection);
   });
-  if (!rows.length) return selection.configured ? "🔎 Сейчас нет заданий по твоему профилю. В приложении можно открыть «Все задания» или уточнить навыки." : "🔎 Сейчас нет доступных заданий. Попробуй открыть ленту позже.";
-  return (selection.configured ? "🔎 Задания по твоему профилю" : "🔎 Задания из общей ленты") + "\n\n" + rows.slice(0, 5).map(row => "• " + clean(row.title)).join("\n") + "\n\nУсловия и актуальность проверь в карточке и первоисточнике. Полная лента — в приложении.";
+  return { rows, selection };
 }

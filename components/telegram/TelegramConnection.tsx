@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { TelegramNotifications } from "./TelegramNotifications";
 import { ArrowUpRight, LoaderCircle, Link2 } from "lucide-react";
 
 type Status = { available: boolean; connection?: { telegram_username: string | null; linked_at: string } | null; pending?: { id: string; expires_at: string; telegram_user_id: number | null; telegram_username: string | null } | null };
@@ -57,6 +58,7 @@ export function TelegramConnection() {
       </>}
     {busy ? <p className="telegram-status" role="status"><LoaderCircle className="spin" size={16} /> Сохраняем…</p> : null}
     {error ? <p className="auth-message error" role="alert">{error}</p> : null}
+    {status.connection && <TelegramNotifications />}
     <p className="muted telegram-connection-note">Подключение не включает рекламные рассылки. Отключить связь можно здесь или командой /stop в боте.</p>
   </section>;
 }
