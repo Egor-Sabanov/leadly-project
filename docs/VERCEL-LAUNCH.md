@@ -1,5 +1,7 @@
 # LEADLY на Vercel: запуск, Google и Telegram
 
+Последнее техническое обновление 20 октября: runtime `78013055c49a6f39a76f2c433e77f65990191eb5`, READY `dpl_AkCYrYnoGmrdEuu1hHytdEcVpJYw`, alias https://leadly-topaz-seven.vercel.app. Опубликованы повторное подтверждение почты, русские ошибки, одноразовые email-ссылки и подготовка совместимого userinfo Яндекс. Lint/326 unit-SQL/build, 30 UI, 12 настоящих публичных Auth/browser, 24 проверки изоляции БД, 13 публичных read-only и 3 запрета нового endpoint прошли. Настоящий Яндекс/VK-вход и новые почтовые шаблоны ещё требуют действий владельца; технический этап целиком не завершён. Детали и границы — [TECHNICAL-RELEASE](TECHNICAL-RELEASE.md). Ниже сохранена история прежних запусков.
+
 ## Подготовленная конфигурация
 
 - Актуальная ветка: `leadly-mvp-download` репозитория `Egor-Sabanov/leadly-project`. `main` пока не обновлялась и не является этой версией продукта.
