@@ -1,3 +1,4 @@
+import { discoverTelegramSources } from "@/lib/telegram-source-discovery";
 import { setupTelegramWebhook } from "@/lib/telegram-webhook-setup";
 import { ingestionAuthorized } from "@/lib/scheduler-auth";
 import { dispatchTelegramNotificationBatches } from "@/lib/telegram-delivery";
@@ -1164,6 +1165,10 @@ export async function GET(request: Request) {
           const bot = await setupTelegramWebhook({ token: process.env.TELEGRAM_BOT_TOKEN!, secret: process.env.TELEGRAM_WEBHOOK_SECRET!, siteUrl: process.env.LEADLY_SITE_URL || "", expectedUsername: process.env.TELEGRAM_BOT_USERNAME, rules: [], apply: true, commandsOnly: true });
           console.info(JSON.stringify({ event: "telegram_commands_checked", runId: id, ...bot }));
         } catch { console.info(JSON.stringify({ event: "telegram_commands_check_failed", runId: id })); }
+      }
+      if (Date.now() < outerStarted + 210000) {
+        try { const discoveryDeadline = Math.min(Date.now() + 15000, outerStarted + 230000); const discovery = await discoverTelegramSources(telegramAdmin(discoveryDeadline), process.env.TELEGRAM_BOT_TOKEN!, process.env.TELEGRAM_BOT_USERNAME!, discoveryDeadline); console.info(JSON.stringify({ event: "telegram_sources_checked", runId: id, sources: discovery })); }
+        catch { console.info(JSON.stringify({ event: "telegram_sources_check_unavailable", runId: id })); }
       }
       let notifications;
       try {

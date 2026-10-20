@@ -9,7 +9,7 @@ import {
   telegramDirectory,
 } from "@/lib/source-directory";
 import { disciplines } from "@/lib/disciplines";
-import { parseTelegramChannelRules } from "@/lib/telegram-channel-rules";
+import { approvedTelegramRules } from "@/lib/telegram-source-discovery";
 export const dynamic = "force-dynamic";
 export default async function SourcesPage() {
   const account = await getAccount();
@@ -24,11 +24,11 @@ export default async function SourcesPage() {
   let channelCount = 0;
   let channelConfigError = false;
   try {
-    channelCount = parseTelegramChannelRules(
+    channelCount = (await approvedTelegramRules(account.supabase,
       process.env.TELEGRAM_CHANNEL_RULES,
       process.env.TELEGRAM_ALLOWED_CHAT_IDS,
       process.env.TELEGRAM_OPPORTUNITY_TYPE,
-    ).length;
+    )).length;
   } catch {
     channelConfigError = true;
   }

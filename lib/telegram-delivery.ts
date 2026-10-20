@@ -52,7 +52,7 @@ async function sendMessage(config: TelegramDeliveryConfig, claim: Claim, text: s
       if (body.error_code === 403) return { outcome: "blocked", error: "blocked" };
       if (body.error_code === 429) return { outcome: "failed", error: "rate_limit", retry: Math.min(86400, Math.max(1, isRecord(body.parameters) && Number.isSafeInteger(body.parameters.retry_after) ? Number(body.parameters.retry_after) : 60)) };
       if (typeof body.error_code === "number" && body.error_code >= 500) return { outcome: "failed", error: "rejected", retry: 60 };
-      if (typeof body.error_code === "number" && body.error_code >= 400 && body.error_code < 500) return { outcome: "cancelled", error: "rejected" };
+      if (typeof body.error_code === "number" && body.error_code >= 400 && body.error_code < 500) return { outcome: "failed", error: "rejected", retry: 86400 };
     }
     return { outcome: "uncertain", error: "network_unknown" };
   } catch { return { outcome: "uncertain", error: "network_unknown" }; }

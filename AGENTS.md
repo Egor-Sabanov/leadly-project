@@ -40,3 +40,6 @@
 
 
 Перед включением выявлена граница интервалов и исправлена отдельной0013_stream_delivery_guard.sql: cross-slot in-flight/uncertain/retry_after. Владелец получил update-stream-delivery.sql; ответ ожидается. 0012 сохранена как уже установленная, combined installer включает0013. Следующий snapshot родительcf91b5913bc036ebb3bf9d7a97e6fd44ebe67c6f (он ещё не deployed); public runtime по-прежнему76e1b25. Deploy только после guard live report>=12 checks/cleaned. Полный guardcheck519 в live-feed-guard-check.log. UI14 иoffline36 уже прошли, повторять без причины не нужно.
+
+
+Владелец подтвердил0013 Success. Перед deployment выполняются свежие12 live checks/cleanup и525 unit/SQL/lint/build. Автопроверка выбранных Telegram-каналов добавлена без новой SQL: только Bot API getMe/getChat/getChatMember, активный source лишь при членстве именно нашего бота; отзыв отключает source; env rules сохраняются. Это не обходит отсутствие доступа. Kwork /projects,/project по официальной OpenAPI требуют token; доступа/договора нет. Новый snapshot родитель402c64d3247e424188bb8fba13d7b2aad3abffc1; runtime пока76e1b25, scheduler off. Дальше deploy→public fixtures/cleanup→enable RPC→natural tick, без новых тестовых opt-ins после включения.

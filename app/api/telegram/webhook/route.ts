@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { readLimitedJson } from "@/lib/request-guards";
 import { normalizeTelegramPost } from "@/lib/telegram-source";
-import { parseTelegramChannelRules } from "@/lib/telegram-channel-rules";
+import { approvedTelegramRules } from "@/lib/telegram-source-discovery";
 import { opportunityDisciplines } from "@/lib/disciplines";
 import { isRecord } from "@/lib/request-guards";
 import { telegramBotReply } from "@/lib/telegram-bot";
@@ -45,22 +45,21 @@ export async function POST(request: Request) {
   }
   let rules;
   try {
-    rules = parseTelegramChannelRules(
+    rules = await approvedTelegramRules(db,
       process.env.TELEGRAM_CHANNEL_RULES,
       process.env.TELEGRAM_ALLOWED_CHAT_IDS,
       process.env.TELEGRAM_OPPORTUNITY_TYPE,
     );
   } catch { return NextResponse.json({ error: "Invalid channel configuration" }, { status: 503 }); }
-  const post = rules
-    .map((rule) => normalizeTelegramPost(input, [rule.chatId], rule.type))
-    .find(Boolean);
+  const matched = rules.map(rule => ({ post: normalizeTelegramPost(input, [rule.chatId], rule.type), sourceSlug: rule.sourceSlug })).find(row => row.post);
+  const post = matched?.post;
   if (!post) return NextResponse.json({ ok: true, ignored: true }, { headers: telegramHeaders });
   const source = await db
     .from("opportunity_sources")
     .upsert(
       {
         name: `${post.channel} · Telegram ${post.chatId}`,
-        slug: `telegram-${post.chatId.replace(/[^0-9]/g, "")}`,
+        slug: matched?.sourceSlug || `telegram-${post.chatId.replace(/[^0-9]/g, "")}`,
         base_url: `https://t.me/${new URL(post.url).pathname.split("/")[1]}`,
         source_type: "telegram",
         is_active: true,
