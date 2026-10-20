@@ -14,13 +14,13 @@ export function telegramCalendarDate(timezone: unknown, now = new Date()) {
 export async function telegramWorkspace(command: WorkspaceCommand, db: SupabaseClient, telegramId: number, now = new Date()): Promise<string> {
   const mapping = await db.from("telegram_accounts").select("user_id,chat_id").eq("telegram_user_id", telegramId).maybeSingle();
   if (mapping.error) throw new Error("Storage unavailable");
-  if (!mapping.data) return "Подключи свой аккаунт: открой LEADLY на сайте → Профиль → Telegram. После подтверждения здесь появятся твои задания, сохранённое, проекты и дела.";
+  if (!mapping.data) return "🔗 Подключи свой аккаунт: открой LEADLY на сайте → Профиль → Telegram. После подтверждения здесь появятся твои задания, сохранённое, проекты и дела.";
   if (mapping.data.chat_id !== telegramId || !validUuid(mapping.data.user_id)) throw new Error("Invalid mapping");
   const id = mapping.data.user_id;
   const account = await db.auth.admin.getUserById(id);
   const user = account.data?.user;
   const banned = (user as unknown as { banned_until?: string } | undefined)?.banned_until;
-  if (account.error || !user || user.id !== id || !user.email_confirmed_at || user.is_anonymous || (banned && Date.parse(banned) > now.getTime())) return "Вход в связанный аккаунт недоступен. Открой сайт LEADLY и проверь доступ к своему кабинету.";
+  if (account.error || !user || user.id !== id || !user.email_confirmed_at || user.is_anonymous || (banned && Date.parse(banned) > now.getTime())) return "🔒 Вход в связанный аккаунт недоступен. Открой сайт LEADLY и проверь доступ к своему кабинету.";
   const profile = await db.from("profiles").select("headline,skills_summary,onboarding_completed,timezone").eq("id", id).maybeSingle();
   if (profile.error) throw new Error("Storage unavailable");
   if (command === "tasks" || command === "today") {
@@ -32,8 +32,8 @@ export async function telegramWorkspace(command: WorkspaceCommand, db: SupabaseC
     const result = await query.order("scheduled_for").limit(6);
     if (result.error) throw new Error("Storage unavailable");
     const rows = result.data || [];
-    if (!rows.length) return command === "today" ? "На сегодня и за прошлые дни незавершённых дел нет. Новое дело можно добавить в приложении." : "Открытых дел пока нет. Добавь в приложении следующий шаг: подготовить отклик, написать клиенту или сдать проект.";
-    return (command === "today" ? "Дела на сегодня и просроченные" : "Ближайшие дела") + "\n\n" + rows.slice(0, 5).map(row => {
+    if (!rows.length) return command === "today" ? "📅 На сегодня и за прошлые дни незавершённых дел нет. Новое дело можно добавить в приложении." : "✅ Открытых дел пока нет. Добавь в приложении следующий шаг: подготовить отклик, написать клиенту или сдать проект.";
+    return (command === "today" ? "📅 Дела на сегодня и просроченные" : "✅ Ближайшие дела") + "\n\n" + rows.slice(0, 5).map(row => {
       const date = String(row.scheduled_for).slice(0, 10);
       return `• ${clean(row.note) || "Связаться с клиентом"} — ${date}${date < today ? " · просрочено" : ""}`;
     }).join("\n") + (rows.length > 5 ? "\n\nОстальные дела — в приложении." : "\n\nОтметить выполненное или изменить дату можно в приложении.");
@@ -46,8 +46,8 @@ export async function telegramWorkspace(command: WorkspaceCommand, db: SupabaseC
     const rows = (result.data || []) as unknown as { status: string; opportunities: { id: string; title: string } | null }[];
     const labels: Record<string, string> = { applied: "Отклик отправлен", replied: "Получен ответ", negotiating: "Переговоры", won: "Успех" };
     const valid = rows.filter(row => row.opportunities && validUuid(row.opportunities.id));
-    if (!valid.length) return command === "saved" ? "Сохранённых заданий пока нет. Отметь интересное задание в LEADLY — оно появится здесь." : "Проектов и откликов пока нет. Выбери задание в приложении и сохрани следующий шаг.";
-    return (command === "saved" ? "Твои сохранённые задания" : "Твои проекты и отклики") + "\n\n" + valid.slice(0, 5).map(row => `• ${clean(row.opportunities!.title)}${command === "projects" ? " — " + labels[row.status] : ""}`).join("\n") + "\n\nКарточки, заметки и статусы — в приложении.";
+    if (!valid.length) return command === "saved" ? "📌 Сохранённых заданий пока нет. Отметь интересное задание в LEADLY — оно появится здесь." : "💼 Проектов и откликов пока нет. Выбери задание в приложении и сохрани следующий шаг.";
+    return (command === "saved" ? "📌 Твои сохранённые задания" : "💼 Твои проекты и отклики") + "\n\n" + valid.slice(0, 5).map(row => `• ${clean(row.opportunities!.title)}${command === "projects" ? " — " + labels[row.status] : ""}`).join("\n") + "\n\nКарточки, заметки и статусы — в приложении.";
   }
   const [feed, preferences, skillRows, serviceRows] = await Promise.all([
     loadRussianOpportunities(db, 500),
@@ -65,6 +65,6 @@ export async function telegramWorkspace(command: WorkspaceCommand, db: SupabaseC
     const score = scoreOpportunity({ headline: profile.data?.headline, skillNames, serviceNames }, item);
     return matchesProfileSelection({ type: item.type, matched_keywords: score.explanation.matched_keywords }, opportunityDisciplines(item), selection);
   });
-  if (!rows.length) return selection.configured ? "Сейчас нет заданий по твоему профилю. В приложении можно открыть «Все задания» или уточнить навыки." : "Сейчас нет доступных заданий. Попробуй открыть ленту позже.";
-  return (selection.configured ? "Задания по твоему профилю" : "Задания из общей ленты") + "\n\n" + rows.slice(0, 5).map(row => "• " + clean(row.title)).join("\n") + "\n\nУсловия и актуальность проверь в карточке и первоисточнике. Полная лента — в приложении.";
+  if (!rows.length) return selection.configured ? "🔎 Сейчас нет заданий по твоему профилю. В приложении можно открыть «Все задания» или уточнить навыки." : "🔎 Сейчас нет доступных заданий. Попробуй открыть ленту позже.";
+  return (selection.configured ? "🔎 Задания по твоему профилю" : "🔎 Задания из общей ленты") + "\n\n" + rows.slice(0, 5).map(row => "• " + clean(row.title)).join("\n") + "\n\nУсловия и актуальность проверь в карточке и первоисточнике. Полная лента — в приложении.";
 }

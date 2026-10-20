@@ -17,22 +17,62 @@ export const TELEGRAM_COMMANDS = [
   { command: "stop", description: "Отключить Telegram от LEADLY" },
 ];
 
+export const TELEGRAM_MENU_ACTIONS: Readonly<Record<string, string>> = {
+  "🔎 Задания": "opportunities",
+  "📌 Сохранённое": "saved",
+  "💼 Проекты": "projects",
+  "📅 Сегодня": "today",
+  "✅ Мои дела": "tasks",
+  "👤 Профиль": "profile",
+  "📱 LEADLY": "app",
+  "ℹ️ Помощь": "help",
+  "Меню": "help",
+  "меню": "help",
+  "Помощь": "help",
+};
+function miniUrl(site: string, next: string) {
+  const url = new URL("/telegram", site);
+  url.searchParams.set("next", next);
+  return url.href;
+}
+export function telegramMenu(site: string) {
+  return {
+    keyboard: [
+      [{ text: "🔎 Задания" }, { text: "📌 Сохранённое" }],
+      [{ text: "💼 Проекты" }, { text: "📅 Сегодня" }],
+      [{ text: "✅ Мои дела" }, { text: "👤 Профиль", web_app: { url: miniUrl(site, "/profile") } }],
+      [{ text: "📱 LEADLY", web_app: { url: miniUrl(site, "/") } }, { text: "ℹ️ Помощь" }],
+    ],
+    resize_keyboard: true,
+    is_persistent: true,
+    input_field_placeholder: "Выбери действие LEADLY",
+  };
+}
+/** Telegram HTML is generated only after escaping all user/source content. */
+export function telegramRichText(value: string) {
+  const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const lines = value.split("\n");
+  return lines.map((line, i) => i === 0 && lines.length > 1 && line.length < 100 ? `<b>${escape(line)}</b>` : escape(line)).join("\n");
+}
+
 export async function telegramBotReply(input: unknown, db: SupabaseClient, siteUrl: string, botUsername = "") {
   if (!isRecord(input) || !Number.isSafeInteger(input.update_id) || Number(input.update_id) < 0 || !isRecord(input.message)) return null;
   const message = input.message, chat = message.chat, sender = message.from;
   if (!Number.isSafeInteger(message.message_id) || Number(message.message_id) <= 0 || !isRecord(chat) || !isRecord(sender) || chat.type !== "private" || sender.is_bot === true ||
       !Number.isSafeInteger(chat.id) || Number(chat.id) <= 0 || chat.id !== sender.id || typeof message.text !== "string" || message.text.length > 4000) return null;
-  const command = message.text.trim().match(/^\/(start|app|opportunities|saved|projects|today|tasks|profile|help|privacy|stop)(?:@([A-Za-z0-9_]{5,32}))?(?:\s+(\S+))?$/);
+  const text = message.text.trim();
+  const shortcut = Object.hasOwn(TELEGRAM_MENU_ACTIONS, text) ? TELEGRAM_MENU_ACTIONS[text] : null;
+  const command = shortcut ? [text, shortcut] : text.match(/^\/(start|app|opportunities|saved|projects|today|tasks|profile|help|privacy|stop)(?:@([A-Za-z0-9_]{5,32}))?(?:\s+(\S+))?$/);
   if (!command) return null;
   if (command[2] && botUsername && command[2].toLowerCase() !== botUsername.toLowerCase()) return null;
   const name = command[1], payload = command[3];
   const destination = name === "opportunities" ? "/opportunities" : name === "saved" ? "/opportunities?saved=1&scope=all" : name === "projects" ? "/crm" : name === "tasks" || name === "today" ? "/tasks" : name === "profile" ? "/profile" : "/";
-  const mini = new URL("/telegram", siteUrl); mini.searchParams.set("next", destination);
-  const reply = (text: string, appButton = true) => ({ method: "sendMessage", chat_id: chat.id, text, link_preview_options: { is_disabled: true },
-    ...(appButton ? { reply_markup: { inline_keyboard: [[{ text: "Открыть LEADLY", web_app: { url: mini.href } }]] } } : {}),
+  const labels: Record<string, string> = { opportunities: "🔎 Открыть задания", saved: "📌 Открыть сохранённое", projects: "💼 Открыть проекты", tasks: "✅ Открыть мои дела", today: "📅 Открыть мои дела", profile: "👤 Открыть профиль" };
+  const reply = (body: string, appButton = true, menu = false) => ({ method: "sendMessage", chat_id: chat.id, text: telegramRichText(body), parse_mode: "HTML", link_preview_options: { is_disabled: true },
+    ...(menu ? { reply_markup: telegramMenu(siteUrl) } : appButton ? { reply_markup: { inline_keyboard: [[{ text: labels[name] || "📱 Открыть LEADLY", web_app: { url: miniUrl(siteUrl, destination) } }]] } } : {}),
   });
-  if (name === "start" && payload) {
-    if (!/^[A-Za-z0-9_-]{43}$/.test(payload)) return reply("Ссылка подключения недействительна. Создай новую в профиле LEADLY.", false);
+  if (name === "start" && payload && payload !== "menu") {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(payload)) return reply("⏳ Ссылка подключения недействительна. Создай новую в профиле LEADLY.", false);
     const username = typeof sender.username === "string" && /^[A-Za-z0-9_]{5,32}$/.test(sender.username) ? sender.username : null;
     const result = await db.rpc("leadly_claim_telegram_link", {
       p_token_hash: createHash("sha256").update(payload).digest("hex"),
@@ -40,19 +80,21 @@ export async function telegramBotReply(input: unknown, db: SupabaseClient, siteU
     });
     if (result.error) throw new Error("Telegram connection storage unavailable");
     return reply(result.data?.ok === true
-      ? "Почти готово. Вернись в открытую вкладку LEADLY и подтверди Telegram в профиле. После этого здесь можно открывать свой рабочий кабинет."
-      : "Ссылка истекла или уже использована. Создай новую в профиле LEADLY.");
+      ? "🔗 Почти готово\n\nВернись в открытую вкладку LEADLY и подтверди Telegram в профиле. Затем выбирай задания, проекты и дела кнопками ниже."
+      : "⏳ Ссылка истекла или уже использована. Создай новую в профиле LEADLY.", true, result.data?.ok === true);
   }
   if (name === "stop") {
     const result = await db.rpc("leadly_disconnect_telegram", { p_telegram_user_id: sender.id });
     if (result.error) throw new Error("Telegram connection storage unavailable");
-    return reply("Telegram отключён от LEADLY. Новый вход через бота остановлен. Чтобы подключиться снова, открой профиль на сайте.", false);
+    return { ...reply("🔒 Telegram отключён от LEADLY\n\nНовый вход через бота и доступ к личным данным остановлены. Чтобы подключиться снова, открой профиль на сайте.", false), reply_markup: { remove_keyboard: true } };
   }
   if (["opportunities", "saved", "projects", "today", "tasks"].includes(name)) {
     try { return reply(await telegramWorkspace(name as WorkspaceCommand, db, sender.id as number)); }
-    catch { return reply("Не удалось загрузить данные. Попробуй команду позже или открой приложение."); }
+    catch { return reply("⏳ Не удалось загрузить данные\n\nПопробуй кнопку позже или открой приложение."); }
   }
-  if (name === "privacy") return reply(`При подключении сохраняются твой Telegram ID, имя пользователя и связь с аккаунтом LEADLY. Личные переписки и контакты бот не читает. Отключение: /stop. Подробнее: ${new URL("/privacy", siteUrl).href}`, false);
-  if (name === "help") return reply("Открой приложение кнопкой ниже. Для первого входа подключи Telegram в профиле на сайте LEADLY и подтверди аккаунт.\n\n/opportunities — задания по профилю\n/saved — сохранённые задания\n/projects — проекты и отклики\n/today — дела на сегодня\n/tasks — ближайшие дела\n/profile — профиль\n/stop — отключить Telegram");
-  return reply(name === "tasks" ? "Твои дела — в приложении LEADLY." : name === "opportunities" ? "Русскоязычные задания и проекты — в приложении LEADLY." : name === "profile" ? "Настройки твоего аккаунта — в приложении LEADLY." : "LEADLY — твои возможности, отклики и дела в одном месте. Для первого входа подключи Telegram в профиле на сайте и подтверди свой аккаунт.");
+  if (name === "privacy") return reply(`🔒 Твои данные\n\nПри подключении сохраняются твой Telegram ID, имя пользователя и связь с аккаунтом LEADLY. Личные переписки и контакты бот не читает.\n\nОтключение: /stop. Подробнее: ${new URL("/privacy", siteUrl).href}`, false);
+  if (name === "help") return reply("💼 Рабочее меню LEADLY\n\n🔎 Задания — подборка по профилю или общая лента.\n📌 Сохранённое — задания, которые ты отметил.\n💼 Проекты — отклики, ответы и переговоры.\n📅 Сегодня — дела на сегодня и просроченные.\n✅ Мои дела — ближайшие незавершённые задачи.\n👤 Профиль — навыки и настройки аккаунта.\n\nВыбирай кнопками ниже — вводить команды не нужно. Если меню скрыто, нажми значок клавиатуры рядом с полем сообщения.\n\nДля первого входа подключи Telegram в профиле на сайте. Отключить связь можно там же или командой /stop.", true, true);
+  if (name === "profile") return reply("👤 Твой профиль\n\nСпециализация, навыки и настройки аккаунта — в LEADLY.");
+  if (name === "app") return reply("📱 Твой LEADLY\n\nЗадания, отклики, проекты и дела — в одном кабинете.");
+  return reply("💼 LEADLY — от задания к работе\n\nНаходи подходящие задания, сохраняй интересное и веди проекты. Выбирай действие кнопками ниже.\n\nЕсли открываешь LEADLY в Telegram впервые, подключи свой аккаунт в профиле на сайте.", true, true);
 }

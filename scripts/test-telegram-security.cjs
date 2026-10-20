@@ -120,7 +120,7 @@ test('confirmed native login exchanges the private OTP server-side only',async()
 test('failed OTP never reports success',async()=>{const h=sessionHarness({otpError:true});assert.equal((await h.run()).response.status,503);});
 test('private bot commands open only fixed HTTPS Mini App routes',async()=>{
   for(const [command,dest] of [['/start','/'],['/app','/'],['/tasks','/tasks'],['/profile','/profile'],['/opportunities','/opportunities']]){
-    const reply=await telegramBotReply(message(command),{},'https://leadly.example','leadly_work_bot');const url=new URL(reply.reply_markup.inline_keyboard[0][0].web_app.url);
+    const reply=await telegramBotReply(message(command),{},'https://leadly.example','leadly_work_bot');const buttons=(reply.reply_markup.inline_keyboard||reply.reply_markup.keyboard).flat();const button=command==='/start'?buttons.find(b=>b.text==='📱 LEADLY'):buttons[0];const url=new URL(button.web_app.url);
     assert.equal(reply.method,'sendMessage');assert.equal(reply.chat_id,1234567890);assert.equal(url.origin,'https://leadly.example');assert.equal(url.pathname,'/telegram');assert.equal(url.searchParams.get('next'),dest);
   }
 });
@@ -136,6 +136,6 @@ test('bot claims only a token hash and waits for confirmation on the website',as
 });
 test('stop disconnects only the verified sender and never includes private app data',async()=>{
   const calls=[];const db={rpc:async(name,args)=>{calls.push({name,args});return {data:{ok:true},error:null};}};
-  const reply=await telegramBotReply(message('/stop'),db,'https://leadly.example');assert.equal(calls[0].args.p_telegram_user_id,1234567890);assert.equal(reply.reply_markup,undefined);
+  const reply=await telegramBotReply(message('/stop'),db,'https://leadly.example');assert.equal(calls[0].args.p_telegram_user_id,1234567890);assert.equal(reply.reply_markup.remove_keyboard,true);
 });
 (async()=>{let passed=0;for(const [name,fn] of tests){try{await fn();passed++;console.log('PASS',name);}catch(error){console.error('FAIL',name,error.message);process.exitCode=1;}}console.log(`RESULT ${passed}/${tests.length} Telegram security checks passed`);})();
