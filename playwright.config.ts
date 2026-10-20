@@ -54,6 +54,8 @@ export default defineConfig({
       LEADLY_HH_ENABLED: "false",
       LEADLY_HH_DISCIPLINES: "",
       LEADLY_VK_AUTH_PROVIDER: "",
+      LEADLY_VK_CLIENT_ID: "",
+      LEADLY_VK_BRIDGE_SECRET: "",
       LEADLY_YANDEX_AUTH_PROVIDER: "",
     },
   },

@@ -1,0 +1,13 @@
+{
+  "provider_type": "oauth2",
+  "identifier": "custom:vk",
+  "name": "VK ID",
+  "client_id": "54837022",
+  "authorization_url": "https://leadly-topaz-seven.vercel.app/api/auth/vk/authorize",
+  "token_url": "https://leadly-topaz-seven.vercel.app/api/auth/vk/token",
+  "userinfo_url": "https://leadly-topaz-seven.vercel.app/api/auth/vk/userinfo",
+  "scopes": ["email"],
+  "pkce_enabled": true,
+  "email_optional": false,
+  "enabled": false
+}

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { socialAuthCatalog, enabledNativeProviders } from "./auth-providers";
+import { vkConfig } from "./vk-oauth";
 /** Return availability only. Provider credentials and admin responses never reach the browser. */
 export async function loadSocialAuthOptions() {
   let options = socialAuthCatalog(
@@ -32,6 +33,7 @@ export async function loadSocialAuthOptions() {
     });
     options = await Promise.all(
       options.map(async (option) => {
+        if (option.id === "vk" && !vkConfig()) return option;
         if (!option.provider.startsWith("custom:")) return option;
         try {
           const { data, error } =

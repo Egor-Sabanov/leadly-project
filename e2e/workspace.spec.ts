@@ -153,35 +153,76 @@ test("auth offers login and recovery, missing configuration fails visibly", asyn
   );
 });
 
-test("email confirmation is a separate compact form without a password", async ({ page }) => {
+test("email confirmation is a separate compact form without a password", async ({
+  page,
+}) => {
   await page.goto("/auth?mode=confirm");
-  await expect(page.getByRole("heading", { name: "Подтверди почту." })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Подтверди почту." }),
+  ).toBeVisible();
   await expect(page.getByLabel("Пароль", { exact: true })).toHaveCount(0);
-  await page.getByRole("textbox", { name: "Email", exact: true }).fill("test@example.com");
-  await page.getByRole("button", { name: "Отправить письмо повторно", exact: true }).click();
-  await expect(page.locator(".auth-message[role=alert]")).toContainText("Подключение аккаунтов ещё не настроено");
-  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await page
+    .getByRole("textbox", { name: "Email", exact: true })
+    .fill("test@example.com");
+  await page
+    .getByRole("button", { name: "Отправить письмо повторно", exact: true })
+    .click();
+  await expect(page.locator(".auth-message[role=alert]")).toContainText(
+    "Подключение аккаунтов ещё не настроено",
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
 });
 
-test("unverified social email callback gives confirmation guidance without leaking provider text", async ({ page }) => {
-  await page.goto("/auth/callback?error=access_denied&error_code=provider_email_needs_verification&error_description=private-data&next=https://evil.example");
-  await expect(page).toHaveURL("http://127.0.0.1:3100/auth?error=email_verification&mode=confirm");
-  await expect(page.getByRole("heading", { name: "Подтверди почту." })).toBeVisible();
-  await expect(page.locator(".auth-message[role=status]")).toContainText("снова нажми кнопку своего сервиса");
+test("unverified social email callback gives confirmation guidance without leaking provider text", async ({
+  page,
+}) => {
+  await page.goto(
+    "/auth/callback?error=access_denied&error_code=provider_email_needs_verification&error_description=private-data&next=https://evil.example",
+  );
+  await expect(page).toHaveURL(
+    "http://127.0.0.1:3100/auth?error=email_verification&mode=confirm",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Подтверди почту." }),
+  ).toBeVisible();
+  await expect(page.locator(".auth-message[role=status]")).toContainText(
+    "снова нажми кнопку своего сервиса",
+  );
   await expect(page.getByLabel("Пароль", { exact: true })).toHaveCount(0);
   await expect(page.locator(".auth-message[role=alert]")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Отправить письмо повторно", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Отправить письмо повторно",
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(page.locator("body")).not.toContainText("private-data");
 });
 
-test("malformed email links expose no token or automatic confirmation", async ({ page }) => {
+test("malformed email links expose no token or automatic confirmation", async ({
+  page,
+}) => {
   const requests: string[] = [];
-  page.on("request", request => { if (request.url().includes("/auth/v1/verify")) requests.push(request.url()); });
-  const response = await page.goto("/auth/confirm?token_hash=invalid&type=invite");
+  page.on("request", (request) => {
+    if (request.url().includes("/auth/v1/verify")) requests.push(request.url());
+  });
+  const response = await page.goto(
+    "/auth/confirm?token_hash=invalid&type=invite",
+  );
   expect(response?.headers()["referrer-policy"]).toBe("no-referrer");
   await expect(page).toHaveURL("http://127.0.0.1:3100/auth/confirm");
-  await expect(page.getByText("В ссылке не хватает данных или она повреждена. Запроси новое письмо.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Подтвердить и продолжить" })).toHaveCount(0);
+  await expect(
+    page.getByText(
+      "В ссылке не хватает данных или она повреждена. Запроси новое письмо.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Подтвердить и продолжить" }),
+  ).toHaveCount(0);
   expect(requests).toEqual([]);
 });
 
@@ -332,7 +373,9 @@ test("unavailable social providers are hidden and their endpoints fail closed", 
 }) => {
   await page.goto("/auth");
   await expect(page.locator(".social-auth-button")).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Вход через сервисы" })).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Вход через сервисы" }),
+  ).toHaveCount(0);
   const response = await request.get("/auth/social/google", {
     maxRedirects: 0,
   });
@@ -442,6 +485,19 @@ test("registration requires data notice acknowledgement; providers stay icon-onl
   await expect(page.getByRole("link", { name: /Посмотреть демо/ })).toHaveCount(
     0,
   );
+});
+
+test("unconfigured VK callback fails closed without exposing a session or redirecting outside the app", async ({
+  request,
+}) => {
+  const result = await request.get(
+    "/auth/vk/callback?code=synthetic-code&device_id=synthetic-device&state=synthetic-state",
+    { maxRedirects: 0 },
+  );
+  expect(result.status()).toBe(503);
+  expect(await result.json()).toEqual({ error: "provider_unavailable" });
+  expect(result.headers()["cache-control"]).toContain("no-store");
+  expect(result.headers()["location"]).toBeUndefined();
 });
 
 test("brand motion stays active without a pause button and remains gentle with reduced motion", async ({
