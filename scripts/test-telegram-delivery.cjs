@@ -20,6 +20,7 @@ function harness(options={}){const calls=[],requests=[];const claim={status:'cla
  await test('expired budget defers before any storage or message action',async()=>{const h=harness();assert.equal(await processTelegramDelivery(h.db,a,'daily',{...config(),deadline:Date.now()-1},h.fetch),'deferred');assert.equal(h.calls.length,0);});
  await test('no opt-ins means no Bot API requests',async()=>{const h=harness();const r=await dispatchTelegramNotifications(h.db,config(),h.fetch);assert.equal(r.sent,0);assert.equal(r.pending,0);assert.equal(h.requests.length,0);});
  await test('bounded batch reports unprocessed recipients and never inflates sent totals',async()=>{const h=harness({rows:[{user_id:a},{user_id:b}],count:205,status:'sent'});const r=await dispatchTelegramNotifications(h.db,config(),h.fetch);assert.equal(r.sent,0);assert.equal(r.pending,203);assert.equal(h.requests.length,1);assert.equal(h.requests[0].method,'getMe');});
+ await test('not-due daily slots are not delivery failures and rate-limit waits remain pending',async()=>{for(const [status,pending] of [['deferred',0],['retry_wait',1]]){const h=harness({status,rows:[{user_id:a}],count:1});const r=await dispatchTelegramNotifications(h.db,config(),h.fetch);assert.equal(r.failed,0);assert.equal(r.pending,pending);assert.equal(r.sent,0);assert.equal(h.requests.filter(x=>x.method==='sendMessage').length,0);}});
  console.log('RESULT '+n+' Telegram delivery checks');})().catch(e=>{console.error(e);process.exitCode=1});
 
 (async()=>{

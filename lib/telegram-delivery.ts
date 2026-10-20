@@ -66,7 +66,7 @@ export async function processTelegramDelivery(db: SupabaseClient, userId: string
   if (reserved.error) return "failed";
   if (reserved.data?.status === "deferred") return "not_due";
   if (reserved.data?.status === "sent" || reserved.data?.status === "empty") return "already_" + reserved.data.status;
-  if (reserved.data?.status !== "claimed") return ["sent", "empty", "uncertain", "failed", "disabled", "cancelled", "prepared", "sending", "unavailable"].includes(reserved.data?.status) ? String(reserved.data.status) : "failed";
+  if (reserved.data?.status !== "claimed") return ["sent", "empty", "uncertain", "failed", "disabled", "cancelled", "prepared", "sending", "unavailable", "retry_wait"].includes(reserved.data?.status) ? String(reserved.data.status) : "failed";
   const claim = readClaim(reserved.data, kind, userId);
   if (!claim) return "failed";
   const finish = async (result: SendResult) => {
@@ -103,7 +103,7 @@ export async function dispatchTelegramNotifications(db: SupabaseClient, config: 
       if (result === "deferred") break;
       completed++;
       if (result === "sent" || result === "empty" || result === "failed" || result === "uncertain" || result === "blocked") summary[result]++;
-      else if (result === "prepared" || result === "sending") summary.pending++;
+      else if (result === "prepared" || result === "sending" || result === "retry_wait") summary.pending++;
     }
   };
   await Promise.all([work(), work()]);
