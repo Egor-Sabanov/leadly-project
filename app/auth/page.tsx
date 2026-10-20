@@ -1,5 +1,6 @@
 import { AuthForm } from "@/components/auth/AuthForm";
 import { loadSocialAuthOptions } from "@/lib/auth-provider-settings";
+import { PROVIDER_EMAIL_NOTICE } from "@/lib/oauth-callback";
 export const dynamic = "force-dynamic";
 export default async function AuthPage({
   searchParams,
@@ -12,7 +13,8 @@ export default async function AuthPage({
   ]);
   return (
     <AuthForm
-      initialMode={params.mode === "recovery" || params.mode === "confirm" || params.mode === "signin" ? params.mode : "signup"}
+      initialMessage={params.error === "email_verification" ? PROVIDER_EMAIL_NOTICE : undefined}
+      initialMode={params.error === "email_verification" ? "confirm" : params.mode === "recovery" || params.mode === "confirm" || params.mode === "signin" ? params.mode : "signup"}
       callbackFailed={params.error === "callback"}
       socialError={
         params.error === "provider"

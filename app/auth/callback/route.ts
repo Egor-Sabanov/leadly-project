@@ -1,10 +1,11 @@
 import { requestOrigin } from "@/lib/request-guards";
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { oauthFailurePath } from "@/lib/oauth-callback";
 export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.has("error"))
     return NextResponse.redirect(
-      new URL("/auth?error=oauth", requestOrigin(request)),
+      new URL(oauthFailurePath(request.nextUrl.searchParams.get("error_code")), requestOrigin(request)),
     );
   const code = request.nextUrl.searchParams.get("code");
   const target =

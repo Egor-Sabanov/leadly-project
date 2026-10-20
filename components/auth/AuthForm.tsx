@@ -18,11 +18,13 @@ export function AuthForm({
   socialOptions = socialAuthCatalog(),
   socialError,
   initialMode = "signup",
+  initialMessage,
 }: {
   callbackFailed?: boolean;
   socialOptions?: SocialAuthOption[];
   socialError?: string;
   initialMode?: Mode;
+  initialMessage?: string;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
@@ -34,7 +36,7 @@ export function AuthForm({
   const requestPending = useRef(false);
   const [mailUntil, setMailUntil] = useState(0);
   const [waitSeconds, setWaitSeconds] = useState(0);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialMessage || "");
   const [error, setError] = useState(
     socialError ||
       (callbackFailed

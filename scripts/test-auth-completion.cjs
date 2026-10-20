@@ -44,6 +44,17 @@ test("email confirmation accepts only supported token types and bounded credenti
   for (const type of ["magiclink","invite","email_change","https://evil.example",undefined]) assert.equal(emailConfirmation(hash,type),null);
   for (const value of [undefined,[],"a", "a".repeat(257),"https://evil.example/"+hash,hash+"<>"]) assert.equal(emailConfirmation(value,"signup"),null);
 });
+const {oauthFailurePath,PROVIDER_EMAIL_NOTICE}=createTsLoader()(path.join(__dirname,'../lib/oauth-callback.ts'));
+test('unverified social email opens confirmation instead of claiming cancellation',()=>{
+ for(const code of ['provider_email_needs_verification','email_not_confirmed']) assert.equal(oauthFailurePath(code),'/auth?error=email_verification&mode=confirm');
+ assert.match(PROVIDER_EMAIL_NOTICE,/снова нажми кнопку своего сервиса/);
+});
+test('unknown callback reasons never echo codes, addresses or arbitrary next destinations',()=>{
+ for(const value of [null,undefined,{},'access_denied','https://evil.example','private@example.com','state=secret'])assert.equal(oauthFailurePath(value),'/auth?error=oauth');
+});
+test('callback email notice does not promise successful login or require a password',()=>{
+ assert.match(PROVIDER_EMAIL_NOTICE,/Подтверди почту/);assert.match(PROVIDER_EMAIL_NOTICE,/запроси его повторно/);assert.ok(!PROVIDER_EMAIL_NOTICE.includes('пароль'));assert.ok(!PROVIDER_EMAIL_NOTICE.includes('отменён'));
+});
 let failed=0;
 for (const [name, run] of tests) { try {run(); console.log("PASS "+name);} catch(e) {failed++;console.error("FAIL "+name+": "+e.message);} }
 console.log(`RESULT ${tests.length-failed}/${tests.length} auth-completion checks passed`);

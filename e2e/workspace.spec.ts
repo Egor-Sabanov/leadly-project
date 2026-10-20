@@ -163,6 +163,17 @@ test("email confirmation is a separate compact form without a password", async (
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 });
 
+test("unverified social email callback gives confirmation guidance without leaking provider text", async ({ page }) => {
+  await page.goto("/auth/callback?error=access_denied&error_code=provider_email_needs_verification&error_description=private-data&next=https://evil.example");
+  await expect(page).toHaveURL("http://127.0.0.1:3100/auth?error=email_verification&mode=confirm");
+  await expect(page.getByRole("heading", { name: "Подтверди почту." })).toBeVisible();
+  await expect(page.locator(".auth-message[role=status]")).toContainText("снова нажми кнопку своего сервиса");
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".auth-message[role=alert]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Отправить письмо повторно", exact: true })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("private-data");
+});
+
 test("malformed email links expose no token or automatic confirmation", async ({ page }) => {
   const requests: string[] = [];
   page.on("request", request => { if (request.url().includes("/auth/v1/verify")) requests.push(request.url()); });
