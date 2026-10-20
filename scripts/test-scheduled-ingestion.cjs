@@ -23,6 +23,7 @@ function harness(options = {}) {
     ...options.env,
   };
   const supabase = {
+    rpc: async name => ({data: name === "leadly_begin_runtime_run" ? {ok:true} : true,error:null}),
     from(table) {
       assert.ok(['opportunities', 'opportunity_sources'].includes(table), 'Never write user-owned tables');
       return {

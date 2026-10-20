@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { telegramWorkspace, type WorkspaceCommand } from "./telegram-workspace";
 import { isRecord } from "./request-guards";
 
 export const TELEGRAM_COMMANDS = [
   { command: "start", description: "Открыть LEADLY и подключить аккаунт" },
   { command: "app", description: "Открыть приложение" },
-  { command: "opportunities", description: "Возможности для заработка" },
-  { command: "tasks", description: "Мои дела" },
+  { command: "opportunities", description: "Задания по моему профилю" },
+  { command: "saved", description: "Сохранённые задания" },
+  { command: "projects", description: "Мои проекты и отклики" },
+  { command: "today", description: "Дела на сегодня и просроченные" },
+  { command: "tasks", description: "Ближайшие дела" },
   { command: "profile", description: "Мой профиль" },
   { command: "help", description: "Помощь" },
   { command: "privacy", description: "Обработка данных" },
@@ -18,13 +22,13 @@ export async function telegramBotReply(input: unknown, db: SupabaseClient, siteU
   const message = input.message, chat = message.chat, sender = message.from;
   if (!Number.isSafeInteger(message.message_id) || Number(message.message_id) <= 0 || !isRecord(chat) || !isRecord(sender) || chat.type !== "private" || sender.is_bot === true ||
       !Number.isSafeInteger(chat.id) || Number(chat.id) <= 0 || chat.id !== sender.id || typeof message.text !== "string" || message.text.length > 4000) return null;
-  const command = message.text.trim().match(/^\/(start|app|opportunities|tasks|profile|help|privacy|stop)(?:@([A-Za-z0-9_]{5,32}))?(?:\s+(\S+))?$/);
+  const command = message.text.trim().match(/^\/(start|app|opportunities|saved|projects|today|tasks|profile|help|privacy|stop)(?:@([A-Za-z0-9_]{5,32}))?(?:\s+(\S+))?$/);
   if (!command) return null;
   if (command[2] && botUsername && command[2].toLowerCase() !== botUsername.toLowerCase()) return null;
   const name = command[1], payload = command[3];
-  const destination = name === "opportunities" ? "/opportunities" : name === "tasks" ? "/tasks" : name === "profile" ? "/profile" : "/";
+  const destination = name === "opportunities" ? "/opportunities" : name === "saved" ? "/opportunities?saved=1&scope=all" : name === "projects" ? "/crm" : name === "tasks" || name === "today" ? "/tasks" : name === "profile" ? "/profile" : "/";
   const mini = new URL("/telegram", siteUrl); mini.searchParams.set("next", destination);
-  const reply = (text: string, appButton = true) => ({ method: "sendMessage", chat_id: chat.id, text,
+  const reply = (text: string, appButton = true) => ({ method: "sendMessage", chat_id: chat.id, text, link_preview_options: { is_disabled: true },
     ...(appButton ? { reply_markup: { inline_keyboard: [[{ text: "Открыть LEADLY", web_app: { url: mini.href } }]] } } : {}),
   });
   if (name === "start" && payload) {
@@ -44,7 +48,11 @@ export async function telegramBotReply(input: unknown, db: SupabaseClient, siteU
     if (result.error) throw new Error("Telegram connection storage unavailable");
     return reply("Telegram отключён от LEADLY. Новый вход через бота остановлен. Чтобы подключиться снова, открой профиль на сайте.", false);
   }
+  if (["opportunities", "saved", "projects", "today", "tasks"].includes(name)) {
+    try { return reply(await telegramWorkspace(name as WorkspaceCommand, db, sender.id as number)); }
+    catch { return reply("Не удалось загрузить данные. Попробуй команду позже или открой приложение."); }
+  }
   if (name === "privacy") return reply(`При подключении сохраняются твой Telegram ID, имя пользователя и связь с аккаунтом LEADLY. Личные переписки и контакты бот не читает. Отключение: /stop. Подробнее: ${new URL("/privacy", siteUrl).href}`, false);
-  if (name === "help") return reply("Открой приложение кнопкой ниже. Для первого входа подключи Telegram в профиле на сайте LEADLY и подтверди аккаунт.\n\n/opportunities — задания\n/tasks — мои дела\n/profile — профиль\n/stop — отключить Telegram");
+  if (name === "help") return reply("Открой приложение кнопкой ниже. Для первого входа подключи Telegram в профиле на сайте LEADLY и подтверди аккаунт.\n\n/opportunities — задания по профилю\n/saved — сохранённые задания\n/projects — проекты и отклики\n/today — дела на сегодня\n/tasks — ближайшие дела\n/profile — профиль\n/stop — отключить Telegram");
   return reply(name === "tasks" ? "Твои дела — в приложении LEADLY." : name === "opportunities" ? "Русскоязычные задания и проекты — в приложении LEADLY." : name === "profile" ? "Настройки твоего аккаунта — в приложении LEADLY." : "LEADLY — твои возможности, отклики и дела в одном месте. Для первого входа подключи Telegram в профиле на сайте и подтверди свой аккаунт.");
 }

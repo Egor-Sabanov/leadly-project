@@ -9,6 +9,7 @@ export async function setupTelegramWebhook(
     rules: TelegramChannelRule[];
     apply: boolean;
     expectedUsername?: string;
+    commandsOnly?: boolean;
   },
   fetcher: typeof fetch = fetch,
 ) {
@@ -46,7 +47,7 @@ export async function setupTelegramWebhook(
         {
           method: "POST",
           redirect: "error",
-          signal: AbortSignal.timeout(12000),
+          signal: AbortSignal.timeout(config.commandsOnly ? 7000 : 12000),
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         },
@@ -92,6 +93,7 @@ export async function setupTelegramWebhook(
   }
   const webhook = new URL("/api/telegram/webhook", origin).href;
   if (config.apply) {
+    if (!config.commandsOnly) {
     const result = await call("setWebhook", {
       url: webhook,
       secret_token: config.secret,
@@ -99,16 +101,22 @@ export async function setupTelegramWebhook(
       drop_pending_updates: false,
     });
     if (result !== true) throw new Error("Webhook не подтверждён Telegram.");
+    }
     if (await call("setMyCommands", { commands: TELEGRAM_COMMANDS }) !== true)
       throw new Error("Telegram не подтвердил команды бота.");
-    if (await call("setChatMenuButton", {
+    if (!config.commandsOnly && await call("setChatMenuButton", {
       menu_button: { type: "web_app", text: "LEADLY", web_app: { url: new URL("/telegram", origin).href } },
     }) !== true) throw new Error("Telegram не подтвердил меню приложения.");
+  }
+  if (config.commandsOnly) {
+    const commands = await call("getMyCommands");
+    if (!Array.isArray(commands) || commands.length !== TELEGRAM_COMMANDS.length || commands.some((command, index) => !isRecord(command) || command.command !== TELEGRAM_COMMANDS[index].command || command.description !== TELEGRAM_COMMANDS[index].description)) throw new Error("Команды Telegram не совпали с настройками LEADLY.");
   }
   const info = await call("getWebhookInfo");
   if (!isRecord(info)) throw new Error("Не удалось проверить webhook.");
   return {
     botUsername: bot.username,
+    ...(config.commandsOnly ? { commandsVerified: TELEGRAM_COMMANDS.length } : {}),
     applied: config.apply,
     configuredUrlMatches: info.url === webhook,
     authorizedChannels: config.rules.length,

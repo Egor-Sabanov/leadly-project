@@ -7,8 +7,14 @@ const {
   emailConfirmation,
   CONFIRMATION_MESSAGE,
 } = createTsLoader()(path.join(__dirname, "../lib/auth-feedback.ts"));
+const { socialAuthHref } = createTsLoader()(path.join(__dirname, "../lib/auth-providers.ts"));
 const tests = [];
 const test = (name, run) => tests.push([name, run]);
+test("new VK signup avoids a redundant native authorization; sign-in keeps the mapped account flow", () => {
+ assert.equal(socialAuthHref("vk","signup"),"/auth/social/vk?transport=provider");
+ assert.equal(socialAuthHref("vk","signin"),"/auth/social/vk");
+ for(const provider of ["google","yandex","github"]) assert.equal(socialAuthHref(provider,"signup"),"/auth/social/"+provider);
+});
 test("unknown provider failures never echo emails, tokens or internals", () => {
   const secret = "email@example.com token_hash=secret SQL database unavailable";
   assert.equal(

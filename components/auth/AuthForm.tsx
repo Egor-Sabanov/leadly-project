@@ -347,7 +347,7 @@ export function AuthForm({
             </button>
             {mode !== "confirm" && <button type="button" className="text-link" disabled={busy} onClick={() => changeMode("confirm")}>Не пришло письмо?</button>}
           </div>
-          {(mode === "signin" || mode === "signup") && !busy && <SocialAuth options={socialOptions} />}
+          {(mode === "signin" || mode === "signup") && !busy && <SocialAuth options={socialOptions} intent={mode} />}
           <p className="auth-legal">
             Только необходимые cookies для входа. Без рекламного отслеживания.{" "}
             <Link href="/privacy#cookies">Подробнее</Link>

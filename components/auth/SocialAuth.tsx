@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { SocialAuthOption } from "@/lib/auth-providers";
+import { socialAuthHref, type SocialAuthOption } from "@/lib/auth-providers";
 function ProviderIcon({ id }: { id: SocialAuthOption["id"] }) {
   if (id === "github")
     return (
@@ -28,7 +28,7 @@ function ProviderIcon({ id }: { id: SocialAuthOption["id"] }) {
     </span>
   );
 }
-export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
+export function SocialAuth({ options, intent = "signin" }: { options: SocialAuthOption[]; intent?: "signup" | "signin" }) {
   const active = options.filter(o => o.enabled);
   if (!active.length) return null;
   return (
@@ -37,7 +37,7 @@ export function SocialAuth({ options }: { options: SocialAuthOption[] }) {
         <span>Другие способы входа</span>
       </div>
       <div className="social-auth-grid">
-        {active.map(o => <Link key={o.id} prefetch={false} href={`/auth/social/${o.id}`} className="social-auth-button" aria-label={`Войти через ${o.label}`} title={o.label}><ProviderIcon id={o.id} /></Link>)}
+        {active.map(o => <Link key={o.id} prefetch={false} href={socialAuthHref(o.id, intent)} className="social-auth-button" aria-label={`Войти через ${o.label}`} title={o.label}><ProviderIcon id={o.id} /></Link>)}
       </div>
     </section>
   );

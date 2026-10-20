@@ -1,3 +1,6 @@
+import { setupTelegramWebhook } from "@/lib/telegram-webhook-setup";
+import { telegramConfigured } from "@/lib/telegram-server";
+import { trackedIngestion } from "@/lib/runtime-health";
 import { opportunityDisciplines } from "@/lib/disciplines";
 import { opportunityWorkFormat } from "@/lib/opportunity-filters";
 import { importHhDiscovery } from "@/lib/sources/hh";
@@ -903,14 +906,13 @@ function canonicalKey(url: string): string {
   }
 }
 
-export async function GET(request: Request) {
+async function ingest(request: Request, runId: string) {
   const cronSecret = process.env.CRON_SECRET;
   const authorization = request.headers.get("authorization");
   const responseHeaders = { "Cache-Control": "no-store, max-age=0" };
   if (!isCronAuthorized(cronSecret, authorization)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: responseHeaders });
   }
-  const runId = randomUUID();
   const startedAt = new Date().toISOString();
   const started = Date.now();
   // Leave time for a final report before the platform's 300-second ceiling.
@@ -1137,4 +1139,30 @@ export async function GET(request: Request) {
     ...outcome,
     note: "Обработаны русскоязычные записи RSS/Atom и API. imported — созданные и обновлённые записи. Иностранные и записи с неопределённым языком пропущены. Эвристические бюджеты из RSS не подтверждены. Проверяй условия и актуальность перед откликом.",
   }, { status: summary.ok ? 200 : 502, headers: responseHeaders });
+}
+
+
+export async function GET(request: Request) {
+  if (!isCronAuthorized(process.env.CRON_SECRET, request.headers.get("authorization")))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store, max-age=0" } });
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return NextResponse.json({ error: "Подключение источников недоступно." }, { status: 503 });
+  if (process.env.LEADLY_RSS_FEEDS !== undefined && !process.env.LEADLY_RSS_FEEDS.split(/\r?\n|,/).some(v => v.trim()) && !process.env.FREELANCEHUNT_API_TOKEN?.trim() && process.env.LEADLY_HH_ENABLED !== "true")
+    return NextResponse.json({ error: "Добавь HTTPS RSS/Atom адреса в LEADLY_RSS_FEEDS (по одному на строку)." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  const db = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(12000) }) },
+  });
+  const id = randomUUID();
+  try { return await trackedIngestion(db, id, async () => {
+    const result = await ingest(request, id);
+    if (telegramConfigured()) {
+      try {
+        const bot = await setupTelegramWebhook({ token: process.env.TELEGRAM_BOT_TOKEN!, secret: process.env.TELEGRAM_WEBHOOK_SECRET!, siteUrl: process.env.LEADLY_SITE_URL || "", expectedUsername: process.env.TELEGRAM_BOT_USERNAME, rules: [], apply: true, commandsOnly: true });
+        console.info(JSON.stringify({ event: "telegram_commands_checked", runId: id, ...bot }));
+      } catch { console.info(JSON.stringify({ event: "telegram_commands_check_failed", runId: id })); }
+    }
+    return result;
+  }); }
+  catch { return NextResponse.json({ error: "Не удалось проверить состояние обновления." }, { status: 503, headers: { "Cache-Control": "no-store" } }); }
 }

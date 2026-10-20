@@ -1,6 +1,6 @@
-type TelegramDestination = "/" | "/opportunities" | "/tasks" | "/profile";
+export type TelegramDestination = "/" | "/opportunities" | "/tasks" | "/profile" | "/crm" | "/opportunities?saved=1&scope=all";
 export function telegramDestination(value: unknown): TelegramDestination {
-  return typeof value === "string" && ["/", "/opportunities", "/tasks", "/profile"].includes(value) ? value as TelegramDestination : "/";
+  return typeof value === "string" && ["/", "/opportunities", "/tasks", "/profile", "/crm", "/opportunities?saved=1&scope=all"].includes(value) ? value as TelegramDestination : "/";
 }
 export function telegramInset(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(200, value)) : 0;

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
+import type { TelegramDestination } from "@/lib/telegram-navigation";
 import { BrandMotion } from "./BrandMotion";
 
 export function BrandWelcome({
@@ -11,7 +12,7 @@ export function BrandWelcome({
   destination,
 }: {
   name: string;
-  destination: "/" | "/onboarding" | "/opportunities" | "/tasks" | "/profile";
+  destination: TelegramDestination | "/onboarding";
 }) {
   const router = useRouter();
   useEffect(() => {

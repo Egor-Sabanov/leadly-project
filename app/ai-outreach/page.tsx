@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { loadRussianOpportunities } from "@/lib/russian-opportunities";
+import { loadOutreachSelection } from "@/lib/outreach-selection";
 import { safeSourceUrl } from "@/lib/links";
 import {
   ArrowLeft,
@@ -126,7 +126,7 @@ export default function AiOutreachPage() {
     const availability = await fetch("/api/outreach", { cache: "no-store" }).then(response => response.ok ? response.json() : null).catch(() => null);
     setAiAvailable(availability?.ai === true);
     const [opp, prof, skillRows, serviceRows, generated] = await Promise.all([
-      loadRussianOpportunities(supabase),
+      loadOutreachSelection(supabase, new URLSearchParams(window.location.search).get("opportunity")),
       supabase
         .from("profiles")
         .select("display_name,headline,bio,target_monthly_income")
@@ -151,13 +151,8 @@ export default function AiOutreachPage() {
       if (result.error) throw result.error;
     const list = (opp.data || []) as Opportunity[];
     setOpportunities(list);
-    setSelectedId(
-      (current) =>
-        current ||
-        new URLSearchParams(window.location.search).get("opportunity") ||
-        list[0]?.id ||
-        "",
-    );
+    setSelectedId(current => list.some(row => row.id === current) ? current : opp.selectedId);
+    if (opp.unavailable) setNotice("Задание по этой ссылке больше недоступно. Выбери другое предложение из списка.");
     if (prof.data) setProfile(prof.data as Profile);
     setSkills(
       (
@@ -326,7 +321,7 @@ export default function AiOutreachPage() {
                 </label>
               ) : (
                 <p className="auth-message">
-                  Сначала найди подходящее задание в «Возможностях».
+                  Сначала найди подходящее задание в разделе «Найти задания».
                 </p>
               )}
               {selected && (

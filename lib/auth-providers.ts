@@ -45,3 +45,9 @@ export function enabledNativeProviders(
       (external as Record<string, unknown>)[option.provider] === true,
   }));
 }
+
+/** New VK registration uses the original email-confirmation flow directly.
+ * Existing linked accounts use the separate native proof and keep their cabinet. */
+export function socialAuthHref(provider: SocialAuthOption["id"], intent: "signup" | "signin" = "signin") {
+  return `/auth/social/${provider}${provider === "vk" && intent === "signup" ? "?transport=provider" : ""}` as const;
+}

@@ -21,13 +21,14 @@
     "telegram:setup": "node scripts/setup-telegram.cjs",
     "setup:profile-storage": "node --env-file-if-exists=.env.local scripts/setup-profile-storage.cjs",
     "sources:sync": "node --env-file-if-exists=.env.local scripts/sync-sources.cjs",
-    "test:assets": "node scripts/test-account-assets.cjs",
+    "test:assets": "node scripts/test-account-assets.cjs && node scripts/test-outreach-selection.cjs",
     "check:readiness": "node --env-file-if-exists=.env.local scripts/check-readiness.cjs",
     "check:deployment": "node --env-file-if-exists=.env.local scripts/check-deployment.cjs",
     "test:deployment": "node scripts/test-deployment.cjs",
-    "test:ingestion": "node scripts/test-scheduled-ingestion.cjs",
+    "test:ingestion": "node scripts/test-scheduled-ingestion.cjs && node scripts/test-runtime-health.cjs",
     "test:feed": "node scripts/test-feed-selection.cjs",
-    "test:telegram": "node scripts/test-telegram-security.cjs && node scripts/test-telegram-database.cjs"
+    "test:telegram": "node scripts/test-telegram-security.cjs && node scripts/test-telegram-database.cjs && node scripts/test-telegram-workspace.cjs && node scripts/test-telegram-command-sync.cjs",
+    "check:operations": "node --env-file-if-exists=.env.local scripts/check-operations.cjs"
   },
   "dependencies": {
     "@fontsource-variable/golos-text": "5.3.0",

@@ -1,11 +1,12 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUpRight, LoaderCircle, Link2 } from "lucide-react";
 
 type Status = { available: boolean; connection?: { telegram_username: string | null; linked_at: string } | null; pending?: { id: string; expires_at: string; telegram_user_id: number | null; telegram_username: string | null } | null };
 export function TelegramConnection() {
   const [status, setStatus] = useState<Status | null>(null), [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [url, setUrl] = useState("");
+  const pendingChange = useRef(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const refresh = useCallback(async () => {
     const response = await fetch("/api/telegram/link", { cache: "no-store" });
@@ -29,6 +30,8 @@ export function TelegramConnection() {
     return () => { clearInterval(timer); document.removeEventListener("visibilitychange", check); };
   }, [requestId, connected, refresh]);
   async function change(method: string, body?: object) {
+    if (pendingChange.current) return;
+    pendingChange.current = true;
     setBusy(true); setError("");
     try {
       const result = await fetch(method === "confirm" ? "/api/telegram/link/confirm" : "/api/telegram/link", {
@@ -38,7 +41,7 @@ export function TelegramConnection() {
       if (data.url) setUrl(data.url); else setUrl("");
       setConfirmDisconnect(false); await refresh();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Не удалось сохранить подключение."); }
-    finally { setBusy(false); }
+    finally { pendingChange.current = false; setBusy(false); }
   }
   if (!status?.available) return null;
   const candidate = status.pending?.telegram_username ? `@${status.pending.telegram_username}` : `Telegram ID ${status.pending?.telegram_user_id}`;
