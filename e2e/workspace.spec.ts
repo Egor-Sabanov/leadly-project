@@ -487,6 +487,33 @@ test("registration requires data notice acknowledgement; providers stay icon-onl
   );
 });
 
+test("social verification without a usable address opens sign-in without promising or resending mail", async ({
+  page,
+}) => {
+  const params = new URLSearchParams({
+    error: "access_denied",
+    error_code: "provider_email_needs_verification",
+    error_description:
+      "Unverified email with custom:vk. Verify the email with custom:vk in order to sign in",
+    next: "https://evil.example",
+  });
+  await page.goto("/auth/callback?" + params);
+  await expect(page).toHaveURL(/\/auth\?error=provider_link&mode=signin$/);
+  await expect(page.getByRole("status")).toContainText(
+    "Письмо подтверждения не отправлено",
+  );
+  await expect(
+    page.getByRole("button", {
+      name: "Отправить письмо повторно",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Пароль", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Unverified email", { exact: false }),
+  ).toHaveCount(0);
+});
+
 test("unconfigured VK callback fails closed without exposing a session or redirecting outside the app", async ({
   request,
 }) => {

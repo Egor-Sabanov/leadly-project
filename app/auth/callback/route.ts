@@ -5,7 +5,13 @@ import { oauthFailurePath } from "@/lib/oauth-callback";
 export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.has("error"))
     return NextResponse.redirect(
-      new URL(oauthFailurePath(request.nextUrl.searchParams.get("error_code")), requestOrigin(request)),
+      new URL(
+        oauthFailurePath(
+          request.nextUrl.searchParams.get("error_code"),
+          request.nextUrl.searchParams.get("error_description"),
+        ),
+        requestOrigin(request),
+      ),
     );
   const code = request.nextUrl.searchParams.get("code");
   const target =
