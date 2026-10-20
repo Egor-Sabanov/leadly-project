@@ -11,7 +11,8 @@ export async function GET(request: Request) {
     const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }) } });
     const result = await db.from("leadly_runtime_runs").select("started_at,finished_at,status").order("started_at", { ascending: false }).limit(100);
     if (result.error) throw new Error();
-    const health = runtimeHealth(result.data || []);
+    const scheduler = await db.rpc("leadly_scheduler_status");
+    const health = runtimeHealth(result.data || [], Date.now(), !scheduler.error && scheduler.data?.enabled ? 600000 : 86400000);
     return Response.json(health, { status: health.healthy ? 200 : 503, headers });
   } catch { return Response.json({ healthy: false }, { status: 503, headers }); }
 }

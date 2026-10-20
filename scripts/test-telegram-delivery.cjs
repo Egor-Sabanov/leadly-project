@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),path=require('node:path');const {createTsLoader}=require('./ts-loader.cjs');const load=createTsLoader({Buffer});const {processTelegramDelivery,verifyTelegramDeliveryBot,dispatchTelegramNotifications}=load(path.join(__dirname,'../lib/telegram-delivery.ts'));
 const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',lease='33333333-3333-4333-8333-333333333333';const config=()=>({token:'123456:'+ 'fixture_'.repeat(5),botUsername:'leadly_work_bot',site:'https://leadly.example',deadline:Date.now()+45000});
 function harness(options={}){const calls=[],requests=[];const claim={status:'claimed',id:b,lease,userId:a,telegramId:1234567890,kind:'daily',fromAt:'2026-01-01',cutoffAt:'2026-01-02',slotDate:'2026-01-02',opportunities:true,tasks:true,...options.claim};
- const db={rpc:async(name,args)=>{calls.push({name,args});if(name==='leadly_claim_telegram_delivery')return {data:{...claim,userId:options.forged?b:args.p_user_id,...(options.status?{status:options.status}:{})},error:null};if(name==='leadly_begin_telegram_send')return {data:!options.beginDenied,error:null};return {data:!options.ackError,error:null};},from(){const q={then:(resolve,reject)=>Promise.resolve({data:options.rows||[],count:options.count??(options.rows||[]).length,error:null}).then(resolve,reject)};for(const m of ['select','or','order','limit'])q[m]=()=>q;return q;}};
+ const db={rpc:async(name,args)=>{calls.push({name,args});if(name==='leadly_claim_telegram_delivery')return {data:{...claim,userId:options.forged?b:args.p_user_id,...(options.status?{status:options.status}:{})},error:null};if(name==='leadly_begin_telegram_send')return {data:!options.beginDenied,error:null};return {data:!options.ackError,error:null};},from(){const q={then:(resolve,reject)=>Promise.resolve({data:options.rows||[],count:options.count??(options.rows||[]).length,error:null}).then(resolve,reject)};for(const m of ['select','or','order','limit','eq'])q[m]=()=>q;return q;}};
  const fetch=async(url,init)=>{const method=url.split('/').at(-1);requests.push({method,body:init.body?JSON.parse(init.body):null,redirect:init.redirect});if(method==='getMe')return Response.json({ok:true,result:{is_bot:true,username:options.wrongBot?'other_bot':'leadly_work_bot'}});if(options.networkError)throw new Error(config().token);return Response.json(options.response||{ok:true,result:{message_id:55,chat:{id:1234567890}}},{status:options.http||200});};
  const run=(build=async()=> '🔔 Твой LEADLY\n\n<b>Private & title</b>')=>processTelegramDelivery(db,a,'daily',config(),fetch,build);return {db,fetch,calls,requests,run};}
 (async()=>{let n=0;const test=async(name,run)=>{await run();n++;console.log('PASS '+name);};
@@ -27,21 +27,22 @@ function harness(options={}){const calls=[],requests=[];const claim={status:'cla
  const calls=[];
  const digestLoad=createTsLoader({Buffer,require(id){
   if(id==='./telegram-workspace')return{telegramOpportunityRows:async(_db,id)=>{calls.push({selectionOwner:id});return{rows:[
-   {title:'Старое задание',discovered_at:'2026-10-18T00:00:00Z'},
-   {title:'Уже учтённая граница',discovered_at:base.fromAt},
-   {title:'Новое подходящее задание',discovered_at:'2026-10-20T05:00:00Z'},
-   {title:'Верхняя граница',discovered_at:base.cutoffAt},
-   {title:'После среза',discovered_at:'2026-10-20T07:00:00Z'},
+   {id:b,title:'Старое задание',discovered_at:'2026-10-18T00:00:00Z'},
+   {id:b,title:'Уже учтённая граница',discovered_at:base.fromAt},
+   {id:b,title:'Новое подходящее задание',discovered_at:'2026-10-20T05:00:00Z'},
+   {id:b,title:'Верхняя граница',discovered_at:base.cutoffAt},
+   {id:b,title:'После среза',discovered_at:'2026-10-20T07:00:00Z'},
   ]}}};
+  if(id==='./telegram-cards')return load(path.join(__dirname,'../lib/telegram-cards.ts'));
   if(id==='./telegram-bot')return{telegramRichText:v=>v};
   if(id==='./request-guards')return createTsLoader()(path.join(__dirname,'../lib/request-guards.ts'));
   return require(id);
  }});
  const {telegramDigest}=digestLoad(path.join(__dirname,'../lib/telegram-delivery.ts'));
  const db={from(table){const q={select(){return q},eq(key,value){calls.push({table,key,value});return q},is(key,value){calls.push({table,key,value});return q},lt(key,value){calls.push({table,key,value});return q},order(){return q},limit(){return Promise.resolve({data:[{note:'Сдать свою работу',scheduled_for:'2026-10-20T12:00:00Z'}]})},maybeSingle(){return Promise.resolve({data:{}})}};return q}};
- const text=await telegramDigest(db,a,base);
+ const text=(await telegramDigest(db,a,base))?.html || '';
  assert(text.includes('Новое подходящее задание'));assert(text.includes('Верхняя граница'));for(const hidden of ['Старое задание','Уже учтённая граница','После среза'])assert(!text.includes(hidden));assert(calls.some(c=>c.selectionOwner===a));console.log('PASS digest reuses profile selection and includes only the unseen discovery window');
- calls.length=0;const tasks=await telegramDigest(db,a,{...base,opportunities:false,tasks:true});assert(tasks.includes('Сдать свою работу'));assert(calls.some(c=>c.table==='follow_ups'&&c.key==='user_id'&&c.value===a));assert(calls.some(c=>c.key==='completed_at'&&c.value===null));assert(calls.some(c=>c.key==='scheduled_for'&&c.value==='2026-10-20T23:59:59.999Z'));console.log('PASS task digest scopes unfinished work to its owner and claimed local calendar day');
+ calls.length=0;const tasks=(await telegramDigest(db,a,{...base,opportunities:false,tasks:true}))?.html || '';assert(tasks.includes('Сдать свою работу'));assert(calls.some(c=>c.table==='follow_ups'&&c.key==='user_id'&&c.value===a));assert(calls.some(c=>c.key==='completed_at'&&c.value===null));assert(calls.some(c=>c.key==='scheduled_for'&&c.value==='2026-10-20T23:59:59.999Z'));console.log('PASS task digest scopes unfinished work to its owner and claimed local calendar day');
  calls.length=0;const probe=await telegramDigest(db,a,{...base,kind:'test',tasks:true});assert(probe.includes('Проверка уведомлений'));assert.equal(calls.length,0);assert.equal(await telegramDigest(db,a,{...base,opportunities:false,tasks:false}),null);console.log('PASS explicit delivery test exposes no private workspace content and empty digest stays empty');
  console.log('RESULT 3 Telegram digest checks');
 })().catch(e=>{console.error(e);process.exitCode=1});

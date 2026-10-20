@@ -45,6 +45,7 @@ function harness(options = {}) {
   };
   const sandbox = {
     require(id) {
+      if (id === '@/lib/scheduler-auth') return require('./ts-loader.cjs').createTsLoader({process:{env}})(path.join(__dirname, '../lib/scheduler-auth.ts'));
       if (id.startsWith('@/')) return load(path.join(__dirname, '..', id.slice(2) + '.ts'));
       if (id === '@supabase/supabase-js') return { createClient: () => supabase };
       if (id === 'next/server') return { NextResponse: Response };
@@ -73,6 +74,7 @@ function harness(options = {}) {
 }
 
 const tests = [
+  ['Habr official feed is explicitly enabled and classified as vacancies', async () => { const h=harness({env:{LEADLY_RSS_FEEDS:'',LEADLY_HABR_ENABLED:'true'}}); const r=await h.run();assert.equal(r.response.status,200);assert.equal(h.requests.length,1);assert(h.requests[0].startsWith('https://career.habr.com/vacancies/rss'));assert.equal(h.writes[0][0].type,'job'); }],
   ['RSS keeps full source categories and does not truncate to forty projects', async () => {
     const items = Array.from({ length: 65 }, (_, i) => ru('https://example.com/projects/' + i).replace('</item>', '<category><![CDATA[Аудио/Видео/Фото / Видеомонтаж]]></category></item>'));
     const h = harness({ response: () => new Response(feed(...items)) });

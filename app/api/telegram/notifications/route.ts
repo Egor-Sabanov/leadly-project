@@ -12,11 +12,11 @@ export async function GET(request: Request) {
     if (connection.error) throw new Error();
     if (!connection.data) return telegramJson({ available: false });
     const [settings, last] = await Promise.all([
-      db.from("telegram_notification_settings").select("opportunities_enabled,tasks_enabled,disabled_reason").eq("user_id", id).maybeSingle(),
+      db.from("telegram_notification_settings").select("opportunities_enabled,tasks_enabled,disabled_reason,opportunity_frequency").eq("user_id", id).maybeSingle(),
       db.from("telegram_notification_deliveries").select("status,finished_at,kind,error_code").eq("user_id", id).order("created_at", { ascending: false }).limit(1),
     ]);
     if (settings.error || last.error) throw new Error();
-    return telegramJson({ available: true, settings: settings.data || { opportunities_enabled: false, tasks_enabled: false, disabled_reason: null }, latest: last.data?.[0] || null });
+    return telegramJson({ available: true, settings: settings.data || { opportunities_enabled: false, tasks_enabled: false, disabled_reason: null, opportunity_frequency: "updates" }, latest: last.data?.[0] || null });
   } catch { return telegramJson({ error: "Не удалось загрузить настройки уведомлений. Попробуй позже." }, 503); }
 }
 export async function POST(request: Request) {
@@ -26,9 +26,9 @@ export async function POST(request: Request) {
   let body: unknown;
   try { body = await readLimitedJson(request, 1000); }
   catch { return telegramJson({ error: "Не удалось прочитать настройки уведомлений." }, 400); }
-  if (!isRecord(body) || typeof body.opportunities !== "boolean" || typeof body.tasks !== "boolean" || ((body.opportunities || body.tasks) && body.consent !== true)) return telegramJson({ error: "Выбери уведомления, которые хочешь получать, и сохрани настройки." }, 400);
+  if (!isRecord(body) || typeof body.opportunities !== "boolean" || typeof body.tasks !== "boolean" || (body.frequency !== undefined && !["daily", "updates"].includes(String(body.frequency))) || ((body.opportunities || body.tasks) && body.consent !== true)) return telegramJson({ error: "Выбери уведомления, которые хочешь получать, и сохрани настройки." }, 400);
   try {
-    const result = await telegramAdmin().rpc("leadly_set_telegram_notifications", { p_user_id: auth.account!.user.id, p_opportunities: body.opportunities, p_tasks: body.tasks });
+    const result = await telegramAdmin().rpc("leadly_set_telegram_notifications", { p_user_id: auth.account!.user.id, p_opportunities: body.opportunities, p_tasks: body.tasks, p_frequency: body.frequency === "updates" ? "updates" : "daily" });
     if (result.error) throw new Error();
     if (result.data?.ok !== true) return telegramJson({ error: "Сначала подключи Telegram и подтверди свой аккаунт." }, 409);
     return telegramJson({ ok: true });

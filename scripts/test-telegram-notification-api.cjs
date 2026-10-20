@@ -37,7 +37,7 @@ async function test(name, fn) { await fn(); count++; console.log('PASS ' + name)
     for (const body of ['{', 'x'.repeat(1001), {}, { opportunities: 'yes', tasks: false }, { opportunities: true, tasks: false, consent: false }, { opportunities: true, tasks: false }]) { const h = harness(); const r = await h.routes[0].POST(request(body)); assert.equal(r.status,400); assert.equal(h.calls.length,0); }
   });
   await test('explicit opt-in uses only the authenticated owner and ignores forged recipients', async () => {
-    const h = harness(), r = await h.routes[0].POST(request({ opportunities: true, tasks: false, consent: true, user_id: peer, chat_id: 1 })); assert.equal(r.status,200); assert.deepEqual(JSON.parse(JSON.stringify(h.calls.map(c=>c.args))),[{p_user_id:own,p_opportunities:true,p_tasks:false}]);
+    const h = harness(), r = await h.routes[0].POST(request({ opportunities: true, tasks: false, consent: true, user_id: peer, chat_id: 1 })); assert.equal(r.status,200); assert.deepEqual(JSON.parse(JSON.stringify(h.calls.map(c=>c.args))),[{p_user_id:own,p_opportunities:true,p_tasks:false,p_frequency:"daily"}]);
   });
   await test('opting out requires no renewed consent and preserves the mapped account', async () => {
     const h = harness(), r = await h.routes[0].POST(request({ opportunities:false,tasks:false })); assert.equal(r.status,200); assert.equal(h.calls[0].name,'leadly_set_telegram_notifications'); assert.equal(h.calls.length,1);

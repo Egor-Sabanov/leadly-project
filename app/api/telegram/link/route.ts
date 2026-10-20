@@ -25,6 +25,7 @@ export async function POST(request: Request) {
   const auth = await accountApi(request, true);
   if (auth.error) return auth.error;
   if (!telegramConfigured()) return telegramJson({ error: "Telegram пока не подключён." }, 503);
+  if (!auth.account!.user.email_confirmed_at) return telegramJson({ error: "Подтверди почту в разделе «Настройки», чтобы входить в этот кабинет через Telegram." }, 409);
   try {
     const consent = await readLimitedJson(request, 1000);
     if (!isRecord(consent) || consent.consent !== true) return telegramJson({ error: "Подтверди подключение Telegram как способа входа." }, 400);

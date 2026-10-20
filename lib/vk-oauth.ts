@@ -159,7 +159,6 @@ export function vkAuthorize(
     client_id: config.clientId,
     redirect_uri: callback(config),
     response_type: "code",
-    scope: "email",
     state,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
@@ -367,10 +366,7 @@ export function vkClaims(value: unknown) {
         : user.user_id;
   if (
     typeof id !== "string" ||
-    !/^[1-9]\d{0,19}$/.test(id) ||
-    typeof user.email !== "string" ||
-    user.email.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)
+    !/^[1-9]\d{0,19}$/.test(id)
   )
     return null;
   const name = [user.first_name, user.last_name]
@@ -380,8 +376,8 @@ export function vkClaims(value: unknown) {
     .slice(0, 80);
   return {
     sub: id,
-    email: user.email,
-    email_verified: false as const,
+    // VK proves its subject. Do not send an unverified email to automatic
+    // account linking. Supabase custom:vk must allow users without email.
     ...(name ? { name } : {}),
   };
 }
@@ -426,7 +422,7 @@ export async function vkUserinfo(
     const claims = vkClaims(result);
     return claims
       ? reply(claims)
-      : reply({ error: "profile_email_required" }, 422);
+      : reply({ error: "profile_unavailable" }, 422);
   } catch {
     return reply({ error: "provider_unavailable" }, 503);
   }

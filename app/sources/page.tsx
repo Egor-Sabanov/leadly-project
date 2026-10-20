@@ -114,7 +114,7 @@ export default async function SourcesPage() {
         <section className="panel source-directory" style={{ marginTop: 22 }}>
           <h2>Поиск под твою профессию</h2>
           <p className="muted">
-            Один профиль и одна воронка для разных digital-направлений. В ленте
+            Один профиль и один кабинет для разных digital-направлений. В ленте
             можно выбрать направление; совпадения оцениваются по твоим реальным
             навыкам.
           </p>
@@ -154,9 +154,7 @@ export default async function SourcesPage() {
         <section className="panel source-directory" style={{ marginTop: 22 }}>
           <h2>Telegram: кандидаты для подключения</h2>
           <p className="muted">
-            Подобраны каналы для первого просмотра. Их доступность, свежесть и
-            условия размещения сейчас не проверены: облачная сеть блокирует
-            Telegram. Подборка не означает разрешение на чтение ботом.
+            Подобраны каналы для первого просмотра. Перед подключением нужен доступ бота к каналу. Публичная ссылка сама по себе не включает импорт публикаций.
           </p>
           <div className="source-grid">
             {telegramDirectory.map((s) => (

@@ -1,3 +1,4 @@
+import { FeedAutoRefresh } from "@/components/opportunities/FeedAutoRefresh";
 import { loadRussianOpportunities } from "@/lib/russian-opportunities";
 import { getAccount } from "@/lib/workspace";
 import { SetupScreen } from "@/components/layout/SetupScreen";
@@ -139,14 +140,13 @@ export default async function OpportunitiesPage({
     };
   });
 
-  let scoreError: { message: string } | null = null;
   if (scoredRows.length && !stateError) {
     const { error } = await supabase
       .from("opportunity_scores")
       .upsert(scoredRows, {
         onConflict: "opportunity_id,user_id,algorithm_version",
       });
-    if (error) scoreError = { message: error.message };
+    if (error) console.info(JSON.stringify({ event: "opportunity_score_history_unavailable" }));
   }
 
   const scoreById = new Map(scoredRows.map((row) => [row.opportunity_id, row]));
@@ -186,15 +186,14 @@ export default async function OpportunitiesPage({
           </div>
         ) : (
           <>
+            <FeedAutoRefresh initialVersion={items.reduce<string | null>((latest, item) => !latest || item.discovered_at > latest ? item.discovered_at : latest, null)} />
             <OpportunityFeed
               opportunities={items}
               initialFilters={initialFilters}
               storageKey={`leadly:feed:${user.id}:v2:${profileSelection.configured ? "personal" : "all"}`}
               profileSelection={profileSelection}
             />
-            {scoreError && (
-              <details className="feed-history-note"><summary>История оценок</summary><p>Оценки в карточках рассчитаны. Сохранение в историю временно недоступно.</p></details>
-            )}
+
           </>
         )}
 

@@ -1,5 +1,6 @@
 import { setupTelegramWebhook } from "@/lib/telegram-webhook-setup";
-import { dispatchTelegramNotifications } from "@/lib/telegram-delivery";
+import { ingestionAuthorized } from "@/lib/scheduler-auth";
+import { dispatchTelegramNotificationBatches } from "@/lib/telegram-delivery";
 import { telegramAdmin, telegramConfigured } from "@/lib/telegram-server";
 import { trackedIngestion } from "@/lib/runtime-health";
 import { opportunityDisciplines } from "@/lib/disciplines";
@@ -428,6 +429,7 @@ function classifyFeedItem(
     return "project";
   // These endpoints are employment-job feeds by their published purpose.
   if (
+    (host === "career.habr.com" && path === "/vacancies/rss") ||
     host === "weworkremotely.com" ||
     host === "remotive.com" ||
     host === "remoteok.com"
@@ -482,6 +484,7 @@ function sourceIdentity(sourceUrl: URL): {
       slug: "fl-ru-projects",
       baseUrl: "https://www.fl.ru",
     };
+  if (host === "career.habr.com" && path === "/vacancies/rss") return { name: "Хабр Карьера", slug: "habr-career-rss", baseUrl: "https://career.habr.com" };
   if (host === "freelancehunt.com" && path === "/projects.rss")
     return {
       name: "Freelancehunt",
@@ -907,13 +910,8 @@ function canonicalKey(url: string): string {
   }
 }
 
-async function ingest(request: Request, runId: string) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authorization = request.headers.get("authorization");
+async function ingest(runId: string) {
   const responseHeaders = { "Cache-Control": "no-store, max-age=0" };
-  if (!isCronAuthorized(cronSecret, authorization)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: responseHeaders });
-  }
   const startedAt = new Date().toISOString();
   const started = Date.now();
   // Leave time for a final report before the platform's 300-second ceiling.
@@ -937,6 +935,7 @@ async function ingest(request: Request, runId: string) {
     .map((v) => v.trim())
     .filter(Boolean)
     .slice(0, MAX_FEEDS);
+  if (process.env.LEADLY_HABR_ENABLED === "true" && !feeds.some(url => url.startsWith("https://career.habr.com/vacancies/rss"))) feeds.push("https://career.habr.com/vacancies/rss");
   const hhEnabled = process.env.LEADLY_HH_ENABLED === "true";
   const freelancehuntToken = process.env.FREELANCEHUNT_API_TOKEN?.trim() || "";
   if (!feeds.length && !freelancehuntToken && !hhEnabled) {
@@ -1021,6 +1020,7 @@ async function ingest(request: Request, runId: string) {
           ),
           title: item.title.slice(0, 300),
           company_name:
+            (sourceUrl.hostname === "career.habr.com" && sourceUrl.pathname === "/vacancies/rss") ||
             (sourceUrl.hostname.toLowerCase().replace(/^www\./, "") ===
               "hnrss.org" &&
               /^\/whoishiring\/freelance\/?$/i.test(sourceUrl.pathname)) ||
@@ -1144,19 +1144,20 @@ async function ingest(request: Request, runId: string) {
 
 
 export async function GET(request: Request) {
-  if (!isCronAuthorized(process.env.CRON_SECRET, request.headers.get("authorization")))
+  if (!isCronAuthorized(process.env.CRON_SECRET, request.headers.get("authorization")) && !/^[0-9a-f]{64}$/.test(request.headers.get("x-leadly-scheduler-key") || ""))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store, max-age=0" } });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return NextResponse.json({ error: "Подключение источников недоступно." }, { status: 503 });
-  if (process.env.LEADLY_RSS_FEEDS !== undefined && !process.env.LEADLY_RSS_FEEDS.split(/\r?\n|,/).some(v => v.trim()) && !process.env.FREELANCEHUNT_API_TOKEN?.trim() && process.env.LEADLY_HH_ENABLED !== "true")
+  if (process.env.LEADLY_RSS_FEEDS !== undefined && !process.env.LEADLY_RSS_FEEDS.split(/\r?\n|,/).some(v => v.trim()) && !process.env.FREELANCEHUNT_API_TOKEN?.trim() && process.env.LEADLY_HH_ENABLED !== "true" && process.env.LEADLY_HABR_ENABLED !== "true")
     return NextResponse.json({ error: "Добавь HTTPS RSS/Atom адреса в LEADLY_RSS_FEEDS (по одному на строку)." }, { status: 400, headers: { "Cache-Control": "no-store" } });
   const db = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(12000) }) },
   });
+  if (!await ingestionAuthorized(request, db)) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
   const id = randomUUID(), outerStarted = Date.now();
   try { return await trackedIngestion(db, id, async () => {
-    const result = await ingest(request, id);
+    const result = await ingest(id);
     if (telegramConfigured()) {
       if (Date.now() < outerStarted + 240000) {
         try {
@@ -1167,7 +1168,7 @@ export async function GET(request: Request) {
       let notifications;
       try {
         const deadline = Math.min(Date.now() + 35000, outerStarted + 265000);
-        notifications = await dispatchTelegramNotifications(telegramAdmin(deadline), { token: process.env.TELEGRAM_BOT_TOKEN!, botUsername: process.env.TELEGRAM_BOT_USERNAME!, site: process.env.LEADLY_SITE_URL || "", deadline });
+        notifications = await dispatchTelegramNotificationBatches(telegramAdmin(deadline), { token: process.env.TELEGRAM_BOT_TOKEN!, botUsername: process.env.TELEGRAM_BOT_USERNAME!, site: process.env.LEADLY_SITE_URL || "", deadline });
       } catch { notifications = { sent: 0, empty: 0, blocked: 0, pending: 0, failed: 1, uncertain: 0 }; }
       console.info(JSON.stringify({ event: "telegram_delivery_finished", runId: id, ...notifications }));
       const body = await result.json();

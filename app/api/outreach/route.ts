@@ -108,7 +108,7 @@ export async function POST(request: Request) {
   });
   if (reservation.error)
     return NextResponse.json(
-      { error: "Не настроен контроль AI-лимитов. Примени миграцию MVP." },
+      { error: "Не удалось проверить доступ к подготовке отклика. Попробуй ещё раз." },
       { status: 503 },
     );
   if (!reservation.data)

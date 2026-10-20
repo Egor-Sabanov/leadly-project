@@ -28,11 +28,11 @@ export async function trackedIngestion(db: SupabaseClient, id: string, operation
   if (finished.error || finished.data !== true) return Response.json({ error: "Не удалось сохранить итог обновления." }, { status: 503, headers });
   return response;
 }
-export function runtimeHealth(rows: { started_at: string; finished_at: string | null; status: string }[], now = Date.now()) {
+export function runtimeHealth(rows: { started_at: string; finished_at: string | null; status: string }[], now = Date.now(), intervalMs = 86400000) {
   const latest = rows[0];
   const success = rows.find(row => row.status === "completed" && row.finished_at);
   const successAt = success?.finished_at ? Date.parse(success.finished_at) : NaN;
   const running = latest?.status === "running" && now - Date.parse(latest.started_at) < 360000;
-  const stale = !Number.isFinite(successAt) || now - successAt > 27 * 3600000 || successAt > now + 60000;
+  const stale = !Number.isFinite(successAt) || now - successAt > Math.max(35 * 60000, intervalMs * 1.125) || successAt > now + 60000;
   return { healthy: !stale && (latest?.status === "completed" || running), stale, running, latestStatus: latest?.status || "never_run", lastSuccessAt: success?.finished_at || null };
 }

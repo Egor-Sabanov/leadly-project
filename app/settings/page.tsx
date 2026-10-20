@@ -1,3 +1,4 @@
+import { AccountEmail } from "@/components/profile/AccountEmail";
 import Link from "next/link";
 import { ArrowUpRight, LockKeyhole } from "lucide-react";
 import { getAccount } from "@/lib/workspace";
@@ -17,11 +18,12 @@ export default async function SettingsPage() {
           title="Настройки"
           description="Личные данные, доступ и конфиденциальность."
         />
+        {account && <AccountEmail initialEmail={account.user.email} confirmed={!!account.user.email_confirmed_at} />}
         <div className="two-col">
           <section className="panel">
             <h2>Мой аккаунт</h2>
             <p className="muted">
-              {account?.user.email || "Аккаунт ещё не подключён"}
+              {account ? account.user.email || "Вход через VK ID" : "Войди в аккаунт"}
             </p>
             <div className="checklist">
               <Link href="/profile">

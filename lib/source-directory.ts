@@ -27,18 +27,13 @@ export const marketplaceDirectory = [
 ];
 export const telegramDirectory = [
   {
-    name: "Finder",
-    username: "finder_vc",
-    description: "Кандидат для вакансий в digital и удалённой работы.",
-  },
-  {
     name: "Дистанция",
     username: "distantsiya",
-    description: "Кандидат для удалённых вакансий разных профессий.",
+    description: "Удалённые вакансии и фриланс-проекты. Публичная страница проверена; импорт требует доступа бота.",
   },
   {
     name: "Design Hunters",
     username: "designhunters",
-    description: "Кандидат для дизайна и смежных творческих направлений.",
+    description: "Дизайн и смежные творческие направления. Публичные публикации проверены; импорт требует доступа бота.",
   },
 ];

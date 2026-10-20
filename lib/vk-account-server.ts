@@ -151,7 +151,7 @@ export async function vkAccountCallback(request: Request) {
       const client = await createSupabaseServerClient();
       const result = await signInLinkedVK(db, client, proof.vkId);
       if (result === "signed_in") response = back(config.site, "/welcome");
-      // Unmapped users retain the original Supabase sign-up/confirmation flow.
+      // Unmapped users sign in or register directly with the stable Supabase VK identity.
       // It owns its own independent state/verifier and does not trust this proof.
       else if (result === "missing")
         response = back(config.site, "/auth/social/vk?transport=provider");

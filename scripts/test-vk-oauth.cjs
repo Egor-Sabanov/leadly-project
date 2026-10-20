@@ -108,7 +108,7 @@ test("authorization fixes VK destination and preserves S256 with a secure encryp
     config.site + "/auth/vk/callback",
   );
   assert.equal(u.searchParams.get("code_challenge"), challenge);
-  assert.equal(u.searchParams.get("scope"), "email");
+  assert.equal(u.searchParams.has("scope"), false);
   const cookie = r.headers.get("set-cookie");
   for (const flag of [
     "HttpOnly",
@@ -367,24 +367,23 @@ test("claims use a stable VK user ID and do not infer verified email or return o
     },
   });
   assert.equal(c.sub, "1234567");
-  assert.equal(c.email_verified, false);
+  assert.equal(c.email_verified, undefined);
+  assert.equal(c.email, undefined);
   assert.equal(c.name, "Имя Фамилия");
   assert.deepEqual(Object.keys(c).sort(), [
-    "email",
-    "email_verified",
     "name",
     "sub",
   ]);
 });
-test("claims reject missing email, invalid or unsafe IDs and malformed profiles", () => {
+test("claims accept missing or unverified email but reject unsafe identities", () => {
+  assert.equal(vkClaims({user:{user_id:"123"}}).sub,"123");
+  assert.equal(vkClaims({user:{user_id:"123",email:"bad"}}).email,undefined);
   for (const x of [
     null,
     {},
     [],
-    { user: { user_id: "123" } },
     { user: { user_id: "../x", email: "a@example.com" } },
     { user: { user_id: 9007199254740992, email: "a@example.com" } },
-    { user: { user_id: "123", email: "bad" } },
   ])
     assert.equal(vkClaims(x), null);
 });
@@ -432,11 +431,11 @@ test("userinfo POSTs only to fixed VK API with body credentials, no redirects or
     },
   );
   assert.equal(r.status, 200);
-  assert.equal((await r.json()).email_verified, false);
+  const claims=await r.json();assert.equal(claims.email_verified,undefined);assert.equal(claims.email,undefined);
 });
-test("userinfo fails closed on missing email, upstream errors, oversized JSON or network failure", async () => {
+test("userinfo fails closed on missing identity, upstream errors, oversized JSON or network failure", async () => {
   for (const response of [
-    Response.json({ user: { user_id: "123" } }),
+    Response.json({ user: {} }),
     Response.json({ error: "private" }),
     new Response("private", { status: 401 }),
     new Response("private", { status: 503 }),
