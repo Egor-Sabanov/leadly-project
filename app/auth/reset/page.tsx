@@ -1,16 +1,18 @@
 "use client";
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ShieldCheck, LoaderCircle } from "lucide-react";
 import { LeadlyLogo } from "@/components/brand/LeadlyLogo";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { authErrorMessage } from "@/lib/auth-feedback";
 export default function ResetPassword() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
   const [message, setMessage] = useState("Проверяем ссылку восстановления…");
   useEffect(() => {
     let live = true;
@@ -36,10 +38,12 @@ export default function ResetPassword() {
   }, []);
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (pending.current || !ready) return;
     if (password !== repeat) {
       setMessage("Пароли не совпадают.");
       return;
     }
+    pending.current = true;
     setBusy(true);
     try {
       const { error } = await getSupabaseBrowserClient().auth.updateUser({
@@ -49,10 +53,9 @@ export default function ResetPassword() {
       router.replace("/profile");
       router.refresh();
     } catch (e) {
-      setMessage(
-        e instanceof Error ? e.message : "Не удалось изменить пароль.",
-      );
+      setMessage(authErrorMessage(e, "password"));
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   }
@@ -80,6 +83,7 @@ export default function ResetPassword() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={busy}
               />
             </label>
             <label>
@@ -92,6 +96,7 @@ export default function ResetPassword() {
                 value={repeat}
                 onChange={(e) => setRepeat(e.target.value)}
                 required
+                disabled={busy}
               />
             </label>
             <button className="auth-submit" disabled={busy}>
@@ -104,8 +109,8 @@ export default function ResetPassword() {
             </button>
           </form>
         )}
-        <Link className="text-link" href="/auth">
-          Вернуться ко входу
+        <Link className="text-link" href="/auth?mode=recovery">
+          Запросить новую ссылку
         </Link>
       </section>
     </main>

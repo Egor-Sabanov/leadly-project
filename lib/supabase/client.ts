@@ -12,9 +12,9 @@ export function getSupabaseBrowserClient() {
   )?.trim();
 
   if (!url || !key) {
-    throw new Error(
+    throw Object.assign(new Error(
       "Подключение аккаунтов ещё не настроено. Обратись к владельцу приложения или попробуй позже.",
-    );
+    ), { code: "leadly_auth_unavailable" });
   }
 
   const telegram = /(?:^|;\s*)leadly-tg=1(?:;|$)/.test(document.cookie);

@@ -1431,6 +1431,7 @@ input[readonly] {
 }
 .auth-secondary-links {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 14px;
   margin-top: 14px;
@@ -1441,6 +1442,11 @@ input[readonly] {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+.auth-secondary-links button {
+  border: 0;
+  background: none;
+  padding: 0;
 }
 .auth-legal {
   font-size: 12px;

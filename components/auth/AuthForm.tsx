@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -9,25 +9,31 @@ import { socialAuthCatalog, type SocialAuthOption } from "@/lib/auth-providers";
 import { LeadlyLogo } from "@/components/brand/LeadlyLogo";
 import { PRIVACY_NOTICE_VERSION } from "@/lib/privacy";
 import { AuthStory } from "@/components/brand/AuthStory";
+import { AUTH_MAIL_STORAGE_KEY, AUTH_MAIL_WAIT_SECONDS, CONFIRMATION_MESSAGE, RECOVERY_MESSAGE, authErrorCode, authErrorMessage, mailWaitSeconds } from "@/lib/auth-feedback";
 
-type Mode = "signin" | "signup" | "recovery";
+type Mode = "signin" | "signup" | "recovery" | "confirm";
 
 export function AuthForm({
   callbackFailed = false,
   socialOptions = socialAuthCatalog(),
   socialError,
+  initialMode = "signup",
 }: {
   callbackFailed?: boolean;
   socialOptions?: SocialAuthOption[];
   socialError?: string;
+  initialMode?: Mode;
 }) {
-  const [mode, setMode] = useState<Mode>("signup");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const requestPending = useRef(false);
+  const [mailUntil, setMailUntil] = useState(0);
+  const [waitSeconds, setWaitSeconds] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(
     socialError ||
@@ -36,18 +42,67 @@ export function AuthForm({
         : ""),
   );
 
+  useEffect(() => {
+    function restore() {
+      try {
+        const stored = Number(localStorage.getItem(AUTH_MAIL_STORAGE_KEY));
+        if (mailWaitSeconds(stored)) {
+          setMailUntil(Math.min(stored, Date.now() + AUTH_MAIL_WAIT_SECONDS * 1000));
+          setWaitSeconds(mailWaitSeconds(stored));
+        }
+      } catch { /* Server limits also apply when browser storage is unavailable. */ }
+    }
+    const timer = setTimeout(restore, 0);
+    window.addEventListener("storage", restore);
+    return () => { clearTimeout(timer); window.removeEventListener("storage", restore); };
+  }, []);
+  useEffect(() => {
+    if (!mailUntil) return;
+    const timer = setInterval(() => {
+      const remaining = mailWaitSeconds(mailUntil);
+      setWaitSeconds(remaining);
+      if (!remaining) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [mailUntil]);
+
+  function startMailWait() {
+    const until = Date.now() + AUTH_MAIL_WAIT_SECONDS * 1000;
+    setMailUntil(until);
+    setWaitSeconds(AUTH_MAIL_WAIT_SECONDS);
+    try { localStorage.setItem(AUTH_MAIL_STORAGE_KEY, String(until)); } catch {}
+  }
+  function changeMode(next: Mode) {
+    if (requestPending.current) return;
+    setMode(next); setError(""); setMessage(""); setPassword(""); setShowPassword(false);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (requestPending.current || (mode !== "signin" && waitSeconds > 0)) return;
     if (mode === "signup" && !privacyAccepted) {
       setError("Ознакомься с условиями обработки данных перед регистрацией.");
       return;
     }
+    if (mode === "signup" && !name.trim()) {
+      setError("Укажи, как к тебе обращаться.");
+      return;
+    }
+    requestPending.current = true;
     setBusy(true);
     setMessage("");
     setError("");
     try {
       const supabase = getSupabaseBrowserClient();
+      if (mode === "confirm") {
+        startMailWait();
+        const { error: resendError } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+        if (resendError) throw resendError;
+        setMessage(CONFIRMATION_MESSAGE);
+        return;
+      }
       if (mode === "recovery") {
+        startMailWait();
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(
           email.trim(),
           {
@@ -55,12 +110,11 @@ export function AuthForm({
           },
         );
         if (resetError) throw resetError;
-        setMessage(
-          "Если аккаунт с таким адресом существует, письмо со ссылкой восстановления отправлено.",
-        );
+        setMessage(RECOVERY_MESSAGE);
         return;
       }
       if (mode === "signup") {
+        startMailWait();
         const { data, error: authError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -75,10 +129,9 @@ export function AuthForm({
         });
         if (authError) throw authError;
         if (!data.session) {
-          setMessage(
-            "Для нового аккаунта проверь почту и подтверди адрес. Если ты уже регистрировался или входил через Google, войди прежним способом.",
-          );
-          setMode("signin");
+          setMessage(CONFIRMATION_MESSAGE);
+          setPassword("");
+          setMode("confirm");
           return;
         }
         // A new identity needs a fresh router cache; public-page prefetches may
@@ -95,12 +148,13 @@ export function AuthForm({
         window.location.replace("/welcome");
       }
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Не удалось выполнить вход. Попробуй ещё раз.",
-      );
+      const code = authErrorCode(caught);
+      if (["user_already_exists", "email_exists", "user_not_found"].includes(code) && ["signup", "confirm", "recovery"].includes(mode)) {
+        setMessage(mode === "recovery" ? RECOVERY_MESSAGE : CONFIRMATION_MESSAGE);
+        if (mode === "signup") { setPassword(""); setMode("confirm"); }
+      } else setError(authErrorMessage(caught, mode));
     } finally {
+      requestPending.current = false;
       setBusy(false);
     }
   }
@@ -118,6 +172,8 @@ export function AuthForm({
               ? "Начнём знакомство."
               : mode === "recovery"
                 ? "Вернём доступ."
+                : mode === "confirm"
+                  ? "Подтверди почту."
                 : "С возвращением."}
           </h1>
           <p
@@ -128,6 +184,8 @@ export function AuthForm({
               ? "Создай аккаунт, чтобы находить заказы и вести проекты."
               : mode === "recovery"
                 ? "Укажи email аккаунта — пришлём ссылку для смены пароля."
+                : mode === "confirm"
+                  ? "Запроси новое письмо, если не получилось подтвердить адрес."
                 : "Войди, чтобы продолжить работу с возможностями."}
           </p>
           <div
@@ -140,11 +198,8 @@ export function AuthForm({
               role="tab"
               aria-selected={mode === "signup"}
               className={mode === "signup" ? "active" : ""}
-              onClick={() => {
-                setMode("signup");
-                setError("");
-                setMessage("");
-              }}
+              disabled={busy}
+              onClick={() => changeMode("signup")}
             >
               Регистрация
             </button>
@@ -153,11 +208,8 @@ export function AuthForm({
               role="tab"
               aria-selected={mode === "signin"}
               className={mode === "signin" ? "active" : ""}
-              onClick={() => {
-                setMode("signin");
-                setError("");
-                setMessage("");
-              }}
+              disabled={busy}
+              onClick={() => changeMode("signin")}
             >
               Вход
             </button>
@@ -176,6 +228,7 @@ export function AuthForm({
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Имя"
                   maxLength={80}
+                  disabled={busy}
                   required
                 />
               </label>
@@ -188,10 +241,12 @@ export function AuthForm({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
+                maxLength={254}
+                disabled={busy}
                 required
               />
             </label>
-            {mode !== "recovery" && (
+            {(mode === "signin" || mode === "signup") && (
               <label>
                 Пароль
                 <div className="password-wrap">
@@ -203,11 +258,14 @@ export function AuthForm({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Минимум 8 символов"
-                    minLength={8}
+                    minLength={mode === "signup" ? 8 : 1}
+                    maxLength={128}
+                    disabled={busy}
                     required
                   />
                   <button
                     type="button"
+                    disabled={busy}
                     className="password-toggle"
                     onClick={() => setShowPassword((value) => !value)}
                     aria-label={
@@ -229,6 +287,7 @@ export function AuthForm({
                       setPrivacyAccepted(event.target.checked)
                     }
                     required
+                    disabled={busy}
                     aria-label="Я ознакомился с условиями обработки персональных данных"
                   />
                   <span>
@@ -255,7 +314,7 @@ export function AuthForm({
                 {message}
               </p>
             )}
-            <button className="auth-submit" type="submit" disabled={busy}>
+            <button className="auth-submit" type="submit" disabled={busy || (mode !== "signin" && waitSeconds > 0)}>
               {busy ? (
                 <LoaderCircle size={18} className="spin" />
               ) : (
@@ -264,28 +323,29 @@ export function AuthForm({
                     ? "Создать аккаунт"
                     : mode === "recovery"
                       ? "Отправить ссылку"
+                      : mode === "confirm"
+                        ? "Отправить письмо повторно"
                       : "Войти в LEADLY"}{" "}
                   <ArrowRight size={17} />
                 </>
               )}
               {busy && "Обрабатываем..."}
             </button>
+            {mode !== "signin" && waitSeconds > 0 && <p className="auth-subtitle">Повторный запрос через {waitSeconds} с.</p>}
           </form>
           <div className="auth-secondary-links">
             <button
               type="button"
               className="text-link"
+              disabled={busy}
               style={{ border: 0, background: "none", padding: 0 }}
-              onClick={() => {
-                setMode(mode === "recovery" ? "signin" : "recovery");
-                setError("");
-                setMessage("");
-              }}
+              onClick={() => changeMode(mode === "recovery" || mode === "confirm" ? "signin" : "recovery")}
             >
-              {mode === "recovery" ? "Вернуться ко входу" : "Забыли пароль?"}
+              {mode === "recovery" || mode === "confirm" ? "Вернуться ко входу" : "Забыли пароль?"}
             </button>
+            {mode !== "confirm" && <button type="button" className="text-link" disabled={busy} onClick={() => changeMode("confirm")}>Не пришло письмо?</button>}
           </div>
-          {mode !== "recovery" && <SocialAuth options={socialOptions} />}
+          {(mode === "signin" || mode === "signup") && !busy && <SocialAuth options={socialOptions} />}
           <p className="auth-legal">
             Только необходимые cookies для входа. Без рекламного отслеживания.{" "}
             <Link href="/privacy#cookies">Подробнее</Link>

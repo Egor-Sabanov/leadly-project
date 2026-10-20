@@ -153,6 +153,27 @@ test("auth offers login and recovery, missing configuration fails visibly", asyn
   );
 });
 
+test("email confirmation is a separate compact form without a password", async ({ page }) => {
+  await page.goto("/auth?mode=confirm");
+  await expect(page.getByRole("heading", { name: "Подтверди почту." })).toBeVisible();
+  await expect(page.getByLabel("Пароль", { exact: true })).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Email", exact: true }).fill("test@example.com");
+  await page.getByRole("button", { name: "Отправить письмо повторно", exact: true }).click();
+  await expect(page.locator(".auth-message[role=alert]")).toContainText("Подключение аккаунтов ещё не настроено");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
+test("malformed email links expose no token or automatic confirmation", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", request => { if (request.url().includes("/auth/v1/verify")) requests.push(request.url()); });
+  const response = await page.goto("/auth/confirm?token_hash=invalid&type=invite");
+  expect(response?.headers()["referrer-policy"]).toBe("no-referrer");
+  await expect(page).toHaveURL("http://127.0.0.1:3100/auth/confirm");
+  await expect(page.getByText("В ссылке не хватает данных или она повреждена. Запроси новое письмо.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Подтвердить и продолжить" })).toHaveCount(0);
+  expect(requests).toEqual([]);
+});
+
 test("navigation is usable, tariff cards only appear in profile", async ({
   page,
   isMobile,

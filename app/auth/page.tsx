@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 export default async function AuthPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; mode?: string }>;
 }) {
   const [params, socialOptions] = await Promise.all([
     searchParams,
@@ -12,6 +12,7 @@ export default async function AuthPage({
   ]);
   return (
     <AuthForm
+      initialMode={params.mode === "recovery" || params.mode === "confirm" || params.mode === "signin" ? params.mode : "signup"}
       callbackFailed={params.error === "callback"}
       socialError={
         params.error === "provider"
