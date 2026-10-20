@@ -6,6 +6,8 @@
 
 Публичное приложение: https://leadly-topaz-seven.vercel.app. На Vercel размещён проверенный снимок ветки `leadly-mvp-download`; Git-интеграция и автоматическое развёртывание `main` не подключались. Текущий результат и ограничения — в [TECHNICAL-RELEASE](docs/TECHNICAL-RELEASE.md), требования владельца — в [PRODUCT-REQUIREMENTS](docs/PRODUCT-REQUIREMENTS.md).
 
+Итог20 октября: [сделанное и оценка готовности](docs/daily/2026-10-20.md). Следующая работа21 октября: [список дел](docs/PLAN-2026-10-21.md).
+
 ## Запуск
 
 Нужен Node.js 24.x (проверено на Node 24.19.0). В корне проекта:
