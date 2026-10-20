@@ -28,3 +28,12 @@
 Владелец сначала сообщил, что email в разделе «Доступы» выключен, затем подтвердил: «Готово — email включён и сохранён». Предварительное условие для настройки провайдера выполнено. Настоящие токены/письма агент не получает. Отдельный виджет One Tap на странице LEADLY ещё не установлен: текущий этап — защищённый вход через существующую компактную кнопку и страницу VK.
 
 Официальные исходники, проверенные 20.10.2026: [VKCOM/vkid-web-sdk](https://github.com/VKCOM/vkid-web-sdk), `src/auth/auth.ts` (device_id/verifier/state, POST auth/user_info), `src/utils/url/url.ts`, `src/constants.ts` (id.vk.ru). Прямой доступ к VK из рабочей среды отклонён сетевым proxy; ограничение не обходилось. Проверка настоящего разрешения в VK проводится владельцем в его браузере после публикации.
+
+
+## Публикация 20.10.2026
+
+348 unit/SQL, lint/build и 34 UI прошли. Runtime source `aab18038782d8647889f1450aea44cf0369f3244`, Vercel READY `dpl_91d329ReMjc2odqYQthvhMFBEaH7`, постоянный alias прежний; все 229 файлов совпали перед загрузкой. Отдельный bridge secret создан и записан только в sensitive Production env LEADLY и client_secret нового custom:vk; оба ключа VK владельца не использовались. После проверки опубликованных маршрутов провайдер включён с PKCE=true, email_optional=false, scope=email. Google/Яндекс/SMTP/Telegram не перенастраивались.
+
+Публичные отрицательные проверки authorize/token/userinfo/callback и синтетический browser-cookie roundtrip прошли, реальный токен VK при этом не запрашивался. Цепочка LEADLY → Supabase → адаптер → точный id.vk.ru/authorize проверена без перехода к VK; state и оба PKCE сохранены. Cookie Secure/HttpOnly, app callback и client ID совпадают с кабинетом. Read-only check:deployment — 13/13. Chromium подтвердил кнопку VK и сохранение Google/Яндекс, оба режима формы и отсутствие переполнения при ширине 320/390/1440, без JavaScript-ошибок.
+
+Владельцу отправлена проверка: приватное окно /auth?mode=signin → vk → разрешить email → при необходимости подтвердить письмо и повторить vk. Ответ пока ожидается. Настоящая сессия VK не считается проверенной по наличию кнопки или redirect. Акаунты и письма агент не создавал. Отчёты вне Git: vk-bridge-{setup,deployment,public,activation,live-redirect,auth-ui}.json, vk-bridge-public-probe.log.
