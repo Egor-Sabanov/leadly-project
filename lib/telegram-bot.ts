@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { telegramWorkspace, type WorkspaceCommand } from "./telegram-workspace";
 import { isRecord } from "./request-guards";
+import { telegramNotificationPanel } from "./telegram-notification-buttons";
 
 export const TELEGRAM_COMMANDS = [
   { command: "start", description: "Открыть LEADLY и подключить аккаунт" },
@@ -46,7 +47,7 @@ export function telegramMenu(site: string) {
       [{ text: "💼 Проекты" }, { text: "📅 Сегодня" }],
       [{ text: "✅ Мои дела" }, { text: "👤 Профиль", web_app: { url: miniUrl(site, "/profile") } }],
       [{ text: "📱 LEADLY", web_app: { url: miniUrl(site, "/") } }, { text: "ℹ️ Помощь" }],
-      [{ text: "🔔 Уведомления", web_app: { url: miniUrl(site, "/profile#telegram") } }, { text: "🔕 Тишина" }],
+      [{ text: "🔔 Уведомления" }, { text: "🔕 Тишина" }],
     ],
     resize_keyboard: true,
     is_persistent: true,
@@ -95,9 +96,9 @@ export async function telegramBotReply(input: unknown, db: SupabaseClient, siteU
     if (mapping.data.chat_id !== sender.id) throw new Error("Invalid Telegram recipient");
     const result = await db.rpc("leadly_set_telegram_notifications", { p_user_id: mapping.data.user_id, p_opportunities: false, p_tasks: false });
     if (result.error || result.data?.ok !== true) throw new Error("Telegram settings unavailable");
-    return reply("🔕 Автоматические уведомления выключены\n\nВход в LEADLY и кнопки бота продолжают работать. Включить подборки и напоминания снова можно в профиле.", true, true);
+    return reply("🔕 Автоматические уведомления выключены\n\nВход в LEADLY и кнопки бота продолжают работать. Включить задания снова можно здесь, кнопкой «🔔 Уведомления». Напоминания о делах — в профиле.", true, true);
   }
-  if (name === "notifications") return reply("🔔 Уведомления LEADLY\n\nВыбери в профиле новые задания и напоминания о делах. По умолчанию они выключены; сохранить настройки и проверить доставку можешь только ты.");
+  if (name === "notifications") return { ...reply("", false), ...await telegramNotificationPanel(db, Number(sender.id), siteUrl) };
   if (name === "stop") {
     const result = await db.rpc("leadly_disconnect_telegram", { p_telegram_user_id: sender.id });
     if (result.error) throw new Error("Telegram connection storage unavailable");
@@ -111,5 +112,5 @@ export async function telegramBotReply(input: unknown, db: SupabaseClient, siteU
   if (name === "help") return reply("💼 Рабочее меню LEADLY\n\n🔎 Задания — подборка по профилю или общая лента.\n📌 Сохранённое — задания, которые ты отметил.\n💼 Проекты — отклики, ответы и переговоры.\n📅 Сегодня — дела на сегодня и просроченные.\n✅ Мои дела — ближайшие незавершённые задачи.\n👤 Профиль — навыки и настройки аккаунта.\n🔔 Уведомления — подборки и напоминания.\n🔕 Тишина — выключить автоматические сообщения.\n\nВыбирай кнопками ниже — вводить команды не нужно. Если меню скрыто, нажми значок клавиатуры рядом с полем сообщения.\n\nДля первого входа подключи Telegram в профиле на сайте. Отключить связь можно там же или командой /stop.", true, true);
   if (name === "profile") return reply("👤 Твой профиль\n\nСпециализация, навыки и настройки аккаунта — в LEADLY.");
   if (name === "app") return reply("📱 Твой LEADLY\n\nЗадания, отклики, проекты и дела — в одном кабинете.");
-  return reply("💼 LEADLY — от задания к работе\n\nНаходи подходящие задания, сохраняй интересное и веди проекты. Выбирай действие кнопками ниже.\n\nЕсли открываешь LEADLY в Telegram впервые, подключи свой аккаунт в профиле на сайте.", true, true);
+  return reply("💼 LEADLY — от задания к работе\n\nНаходи подходящие задания, сохраняй интересное и веди проекты. Выбирай действие кнопками ниже.\n\nХочешь получать новые задания здесь? Нажми «🔔 Уведомления» и выбери удобный режим.\n\nЕсли открываешь LEADLY в Telegram впервые, подключи свой аккаунт в профиле на сайте.", true, true);
 }

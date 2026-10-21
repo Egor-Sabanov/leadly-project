@@ -1162,7 +1162,7 @@ export async function GET(request: Request) {
     if (telegramConfigured()) {
       if (Date.now() < outerStarted + 240000) {
         try {
-          const bot = await setupTelegramWebhook({ token: process.env.TELEGRAM_BOT_TOKEN!, secret: process.env.TELEGRAM_WEBHOOK_SECRET!, siteUrl: process.env.LEADLY_SITE_URL || "", expectedUsername: process.env.TELEGRAM_BOT_USERNAME, rules: [], apply: true, commandsOnly: true });
+          const bot = await setupTelegramWebhook({ token: process.env.TELEGRAM_BOT_TOKEN!, secret: process.env.TELEGRAM_WEBHOOK_SECRET!, siteUrl: process.env.LEADLY_SITE_URL || "", expectedUsername: process.env.TELEGRAM_BOT_USERNAME, rules: [], apply: true, commandsOnly: true, syncNotificationCallbacks: true });
           console.info(JSON.stringify({ event: "telegram_commands_checked", runId: id, ...bot }));
         } catch { console.info(JSON.stringify({ event: "telegram_commands_check_failed", runId: id })); }
       }

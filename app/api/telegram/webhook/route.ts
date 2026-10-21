@@ -6,6 +6,7 @@ import { approvedTelegramRules } from "@/lib/telegram-source-discovery";
 import { opportunityDisciplines } from "@/lib/disciplines";
 import { isRecord } from "@/lib/request-guards";
 import { telegramBotReply } from "@/lib/telegram-bot";
+import { applyTelegramNotificationEdit, telegramNotificationCallback } from "@/lib/telegram-notification-buttons";
 import { telegramHeaders, telegramAdmin } from "@/lib/telegram-server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,16 @@ export async function POST(request: Request) {
     );
   }
   const db = telegramAdmin();
+  if (isRecord(input) && "callback_query" in input) {
+    const site = process.env.LEADLY_SITE_URL, token = process.env.TELEGRAM_BOT_TOKEN || "";
+    try {
+      if (!site || new URL(site).protocol !== "https:" || !/^\d+:[A-Za-z0-9_-]{20,100}$/.test(token))
+        return NextResponse.json({ error: "Connector not configured" }, { status: 503 });
+      const result = await telegramNotificationCallback(input, db, site, process.env.TELEGRAM_BOT_USERNAME || "");
+      const answer = result ? await applyTelegramNotificationEdit(result, token) : { ok: true, ignored: true };
+      return NextResponse.json(answer, { headers: telegramHeaders });
+    } catch { return NextResponse.json({ error: "Storage unavailable" }, { status: 503 }); }
+  }
   if (isRecord(input) && "message" in input) {
     try {
       const site = process.env.LEADLY_SITE_URL;

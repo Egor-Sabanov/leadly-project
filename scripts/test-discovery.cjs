@@ -266,7 +266,7 @@ add(
     assert.equal(call.payload.drop_pending_updates, false);
     assert.equal(call.payload.secret_token, botConfig.secret);
     assert.deepEqual(Array.from(call.payload.allowed_updates), [
-      "message", "channel_post",
+      "message", "channel_post", "callback_query",
     ]);
   },
 );

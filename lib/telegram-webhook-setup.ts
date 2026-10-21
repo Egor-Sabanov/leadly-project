@@ -10,6 +10,7 @@ export async function setupTelegramWebhook(
     apply: boolean;
     expectedUsername?: string;
     commandsOnly?: boolean;
+    syncNotificationCallbacks?: boolean;
   },
   fetcher: typeof fetch = fetch,
 ) {
@@ -97,7 +98,7 @@ export async function setupTelegramWebhook(
     const result = await call("setWebhook", {
       url: webhook,
       secret_token: config.secret,
-      allowed_updates: ["message", "channel_post"],
+      allowed_updates: ["message", "channel_post", "callback_query"],
       drop_pending_updates: false,
     });
     if (result !== true) throw new Error("Webhook не подтверждён Telegram.");
@@ -112,11 +113,25 @@ export async function setupTelegramWebhook(
     const commands = await call("getMyCommands");
     if (!Array.isArray(commands) || commands.length !== TELEGRAM_COMMANDS.length || commands.some((command, index) => !isRecord(command) || command.command !== TELEGRAM_COMMANDS[index].command || command.description !== TELEGRAM_COMMANDS[index].description)) throw new Error("Команды Telegram не совпали с настройками LEADLY.");
   }
-  const info = await call("getWebhookInfo");
+  let info = await call("getWebhookInfo");
+  if (!isRecord(info)) throw new Error("Не удалось проверить webhook.");
+  if (config.commandsOnly && config.syncNotificationCallbacks) {
+    if (info.url !== webhook) throw new Error("Webhook не совпадает с адресом LEADLY.");
+    const enabled = () => {
+      const updates = isRecord(info) ? info.allowed_updates : null;
+      return Array.isArray(updates) && ["message", "channel_post", "callback_query"].every(value => updates.includes(value));
+    };
+    if (!enabled() && config.apply) {
+      if (await call("setWebhook", { url: webhook, secret_token: config.secret, allowed_updates: ["message", "channel_post", "callback_query"], drop_pending_updates: false }) !== true) throw new Error("Webhook не подтверждён Telegram.");
+      info = await call("getWebhookInfo");
+    }
+    if (!enabled()) throw new Error("Telegram не подтвердил кнопки уведомлений.");
+  }
   if (!isRecord(info)) throw new Error("Не удалось проверить webhook.");
   return {
     botUsername: bot.username,
     ...(config.commandsOnly ? { commandsVerified: TELEGRAM_COMMANDS.length } : {}),
+    ...(config.syncNotificationCallbacks ? { notificationCallbacksVerified: true } : {}),
     applied: config.apply,
     configuredUrlMatches: info.url === webhook,
     authorizedChannels: config.rules.length,
