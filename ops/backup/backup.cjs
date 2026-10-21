@@ -6,9 +6,21 @@ const { spawnSync } = require('node:child_process');
 const { exportStorage } = require('./storage.cjs');
 const project = 'leezcyaqhozguvcehcpd';
 
+function toolFailure(command, stderr = '') {
+  const name = path.basename(command);
+  if (['pg_dump', 'psql'].includes(name)) {
+    if (/password authentication failed|no password supplied|SASL authentication failed|Tenant or user not found/i.test(stderr)) return 'backup_database_authentication_failed';
+    if (/certificate verify failed|root certificate file|certificate verification failed/i.test(stderr)) return 'backup_database_certificate_failed';
+    if (/server version mismatch/i.test(stderr)) return 'backup_database_client_version_mismatch';
+    if (/permission denied for|must be owner of/i.test(stderr)) return 'backup_database_permission_denied';
+    if (/could not translate host name|Name or service not known|Network is unreachable|Connection timed out|timeout expired|connection refused/i.test(stderr)) return 'backup_database_connection_failed';
+  }
+  // Never return a command, URI, username, SQL statement or tool stderr.
+  return 'backup_tool_failed_' + name;
+}
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { encoding: 'utf8', timeout: 600000, maxBuffer: 256 * 1024 * 1024, ...options });
-  if (result.error || result.status !== 0) throw new Error('backup_tool_failed_' + path.basename(command));
+  if (result.error || result.status !== 0) throw new Error(toolFailure(command, result.stderr));
   return result.stdout;
 }
 function tool(name) { return process.env.LEADLY_PG_BIN ? path.join(process.env.LEADLY_PG_BIN, name) : name; }
@@ -121,7 +133,7 @@ function verifyPayload(payload, env) {
     }
     return { restored: true, isolated: true, tablesVerified: tables, storageFilesVerified: m.storage.files.length, productionWritten: false };
 }
-module.exports = { backup, restore, connection, copyCounts, exportStorage };
+module.exports = { backup, restore, connection, copyCounts, exportStorage, toolFailure };
 if (require.main === module) {
   process.umask(0o077);
   const action = process.argv[2];
