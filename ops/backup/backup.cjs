@@ -9,7 +9,8 @@ const project = 'leezcyaqhozguvcehcpd';
 function toolFailure(command, stderr = '') {
   const name = path.basename(command);
   if (['pg_dump', 'psql'].includes(name)) {
-    if (/password authentication failed|no password supplied|SASL authentication failed|Tenant or user not found/i.test(stderr)) return 'backup_database_authentication_failed';
+    if (/Tenant or user not found/i.test(stderr)) return 'backup_database_tenant_not_found';
+    if (/password authentication failed|no password supplied|SASL authentication failed/i.test(stderr)) return 'backup_database_authentication_failed';
     if (/certificate verify failed|root certificate file|certificate verification failed/i.test(stderr)) return 'backup_database_certificate_failed';
     if (/server version mismatch/i.test(stderr)) return 'backup_database_client_version_mismatch';
     if (/permission denied for|must be owner of/i.test(stderr)) return 'backup_database_permission_denied';
@@ -34,7 +35,9 @@ function connection(value, mode) {
   if (mode === 'restore' && (!local || !/^leadly_restore_[a-z0-9_]+$/.test(database))) throw new Error('restore_target_must_be_isolated_local_database');
   if (mode === 'fixture' && (!local || !/^leadly_fixture_[a-z0-9_]+$/.test(database))) throw new Error('invalid_fixture_database');
   if (mode === 'backup' && !(url.hostname === 'db.' + project + '.supabase.co' || (url.hostname.endsWith('.pooler.supabase.com') && decode(url.username) === 'postgres.' + project))) throw new Error('unexpected_source_project');
-  const env = { ...process.env, PGHOST: url.hostname.replace(/^\[|\]$/g, ''), PGPORT: url.port || '5432', PGUSER: decode(url.username), PGPASSWORD: decode(url.password), PGDATABASE: database, PGCONNECT_TIMEOUT: '15', PGSSLMODE: local ? 'disable' : 'verify-full', PGAPPNAME: 'leadly-backup' };
+  const password = decode(url.password);
+  if (mode === 'backup' && /^\[YOUR[-_]PASSWORD\]$/i.test(password)) throw new Error('database_password_placeholder');
+  const env = { ...process.env, PGHOST: url.hostname.replace(/^\[|\]$/g, ''), PGPORT: url.port || '5432', PGUSER: decode(url.username), PGPASSWORD: password, PGDATABASE: database, PGCONNECT_TIMEOUT: '15', PGSSLMODE: local ? 'disable' : 'verify-full', PGAPPNAME: 'leadly-backup' };
   // Empty service-file selectors are errors in libpq, not disabled selectors.
   delete env.PGSERVICE; delete env.PGSERVICEFILE; delete env.PGOPTIONS; delete env.PGHOSTADDR;
   if (local) delete env.PGSSLROOTCERT; else env.PGSSLROOTCERT = path.join(__dirname, 'supabase-ca-2021.crt');

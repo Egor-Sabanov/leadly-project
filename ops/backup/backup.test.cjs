@@ -34,6 +34,7 @@ function storage(rows, files = {}) { return { storage: { listBuckets: async () =
   await test('malformed connection strings fail with fixed codes instead of exposing input', () => {
     assert.throws(() => connection('not-a-connection-private-password', 'backup'), { message: 'invalid_database_connection' });
     assert.throws(() => connection('postgres://u:bad%password@127.0.0.1/leadly_restore_fixture', 'restore'), { message: 'invalid_database_url_encoding' });
+    assert.throws(() => connection('postgres://postgres.leezcyaqhozguvcehcpd:[YOUR-PASSWORD]@aws-1-eu.pooler.supabase.com/postgres', 'backup'), { message: 'database_password_placeholder' });
   });
   await test('database failures expose a fixed diagnosis without printing credentials or tool output', () => {
     const privateText = 'postgres://private-user:private-password@private.example/private-db';
@@ -43,6 +44,7 @@ function storage(rows, files = {}) { return { storage: { listBuckets: async () =
       assert(!code.includes('private'));
     }
     assert.equal(toolFailure('pg_dump', privateText), 'backup_tool_failed_pg_dump');
+    assert.equal(toolFailure('pg_dump', 'FATAL: Tenant or user not found '+privateText), 'backup_database_tenant_not_found');
   });
   await test('row counts include escaped multiline records and empty tables without printing their contents', () => {
     assert.deepEqual(copyCounts('COPY public.notes (id, note) FROM stdin;\n1\tprivate\\ntext\n2\t\\\\.\n\\.\nCOPY auth.users (id) FROM stdin;\n\\.\n'), { 'public.notes': 2, 'auth.users': 0 }); assert.throws(() => copyCounts('not a dump'));
