@@ -97,3 +97,5 @@ npm run test:ui
 Развёртывание на Vercel, безопасная конфигурация и проверка HTTPS/OAuth: [VERCEL-LAUNCH](docs/VERCEL-LAUNCH.md). После размещения: `npm run check:deployment -- https://адрес-сайта`.
 
 Текущее продолжение регистрации, результаты проверок и внешние настройки VK ID/Яндекс ID/почтовых шаблонов: [docs/TECHNICAL-RELEASE.md](docs/TECHNICAL-RELEASE.md). Тарифы и оплата отложены до завершения технической части.
+
+Операционные проверки21 октября, внешний монитор и encrypted backup: [отчёт](docs/OPERATIONS-2026-10-21.md). Код/тесты workflow не означают выполненный production backup или активный внешний монитор.

@@ -1,0 +1,33 @@
+const assert = require('node:assert/strict'), fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { connection, copyCounts, exportStorage, restore } = require('./backup.cjs');
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'leadly-backup-test-'));
+let n = 0;
+const test = async (name, fn) => { await fn(); n++; console.log('PASS ' + name); };
+function storage(rows, files = {}) { return { storage: { listBuckets: async () => ({ data: [{ id: 'avatars', public: false }] }), from: () => ({ list: async () => ({ data: rows }), download: async key => ({ data: new Blob([files[key] || 'avatar']) }) }) } }; }
+(async () => { try {
+  await test('restore rejects hosted databases and non-isolated names before reading any archive', async () => {
+    for (const url of ['postgres://postgres:secret@db.leezcyaqhozguvcehcpd.supabase.co/postgres', 'postgres://u@127.0.0.1/postgres', 'postgres://u@localhost/leadly_restore_ok?host=production.example']) await assert.rejects(() => restore({ databaseUrl: url }), /restore_target|invalid_database/);
+    assert.equal(connection('postgres://u@127.0.0.1/leadly_restore_case', 'restore').PGDATABASE, 'leadly_restore_case');
+  });
+  await test('source connection is fixed to the approved Supabase project and password stays out of command arguments', () => {
+    const env = connection('postgresql://postgres.leezcyaqhozguvcehcpd:my%40password@aws-1-eu.pooler.supabase.com:5432/postgres', 'backup'); assert.equal(env.PGPASSWORD, 'my@password'); assert.equal(env.PGSSLMODE, 'verify-full');
+    assert.throws(() => connection('postgres://u:p@other.example/postgres', 'backup'));
+  });
+  await test('row counts include escaped multiline records and empty tables without printing their contents', () => {
+    assert.deepEqual(copyCounts('COPY public.notes (id, note) FROM stdin;\n1\tprivate\\ntext\n2\t\\\\.\n\\.\nCOPY auth.users (id) FROM stdin;\n\\.\n'), { 'public.notes': 2, 'auth.users': 0 }); assert.throws(() => copyCounts('not a dump'));
+  });
+  await test('Storage export hashes bytes and preserves private bucket paths', async () => {
+    const r = await exportStorage(storage([{ id: 'object', name: 'avatar.webp', metadata: { size: 6 } }]), path.join(root, 'ok')); assert.equal(r.files.length, 1); assert.equal(r.files[0].sha256.length, 64); assert.equal(r.buckets[0].public, false); assert.equal(fs.statSync(path.join(root, 'ok/files/avatars/avatar.webp')).mode & 0o777, 0o600);
+  });
+  await test('untrusted Storage names cannot escape the backup directory', async () => {
+    for (const name of ['../secret', '..', '/etc/passwd', 'x\\y']) await assert.rejects(() => exportStorage(storage([{ id: 'object', name, metadata: {} }]), path.join(root, 'bad')), /unsafe_storage_path/);
+  });
+  await test('download and size failures stop backup instead of silently omitting a file', async () => {
+    await assert.rejects(() => exportStorage(storage([{ id: 'object', name: 'a', metadata: { size: 20 } }]), path.join(root, 'limit'), { maxBytes: 5 }), /limit_exceeded/);
+    const s = storage([{ id: 'object', name: 'a', metadata: {} }]); s.storage.from = () => ({ list: async () => ({ data: [{ id: 'object', name: 'a', metadata: {} }] }), download: async () => ({ error: true }) }); await assert.rejects(() => exportStorage(s, path.join(root, 'download')), /download_failed/);
+  });
+  await test('changing Storage during export invalidates the backup', async () => {
+    let calls = 0; const s = storage([]); s.storage.from = () => ({ list: async () => ({ data: ++calls === 1 ? [{ id: 'object', name: 'a', updated_at: 'old', metadata: {} }] : [{ id: 'object', name: 'a', updated_at: 'new', metadata: {} }] }), download: async () => ({ data: new Blob(['x']) }) }); await assert.rejects(() => exportStorage(s, path.join(root, 'changed')), /changed_during_backup/);
+  });
+  console.log('RESULT ' + n + ' backup safety checks');
+} finally { fs.rmSync(root, { recursive: true, force: true }); } })().catch(e => { console.error(e); process.exitCode = 1; });

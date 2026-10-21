@@ -13,3 +13,11 @@ out
 test-results/
 playwright-report/
 *.tsbuildinfo
+.monitor-state/
+.backup-work/
+*.dump
+*.gpg
+*-private.asc
+
+.backup-output/
+.backup-tools/

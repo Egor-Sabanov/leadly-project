@@ -1,0 +1,48 @@
+name: LEADLY external monitor
+on:
+  schedule:
+    - cron: '3-58/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Send one explicit setup test to the configured owner'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: leadly-operations-monitor
+  cancel-in-progress: false
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Restore alert state
+        uses: actions/cache/restore@v4
+        with:
+          path: .monitor-state/state.json
+          key: leadly-monitor-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: leadly-monitor-${{ github.ref_name }}-
+      - name: Check the app and notify its owner
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LEADLY_SITE_URL: https://leadly-topaz-seven.vercel.app
+          SEND_SETUP_TEST: ${{ inputs.test }}
+        run: |
+          if [ "$SEND_SETUP_TEST" = "true" ]; then
+            node ops/monitor/monitor.cjs --test
+          else
+            node ops/monitor/monitor.cjs
+          fi
+      - name: Preserve suppression and retry state even after a failure
+        if: always() && hashFiles('.monitor-state/state.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .monitor-state/state.json
+          key: leadly-monitor-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
