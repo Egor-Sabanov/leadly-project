@@ -6,24 +6,41 @@ const { spawnSync } = require('node:child_process');
 const { exportStorage } = require('./storage.cjs');
 const project = 'leezcyaqhozguvcehcpd';
 
+function toolFailure(command, stderr = '') {
+  const name = path.basename(command);
+  if (['pg_dump', 'psql'].includes(name)) {
+    if (/Tenant or user not found/i.test(stderr)) return 'backup_database_tenant_not_found';
+    if (/password authentication failed|no password supplied|SASL authentication failed/i.test(stderr)) return 'backup_database_authentication_failed';
+    if (/certificate verify failed|root certificate file|certificate verification failed/i.test(stderr)) return 'backup_database_certificate_failed';
+    if (/server version mismatch/i.test(stderr)) return 'backup_database_client_version_mismatch';
+    if (/permission denied for|must be owner of/i.test(stderr)) return 'backup_database_permission_denied';
+    if (/could not translate host name|Name or service not known|Network is unreachable|Connection timed out|timeout expired|connection refused/i.test(stderr)) return 'backup_database_connection_failed';
+  }
+  // Never return a command, URI, username, SQL statement or tool stderr.
+  return 'backup_tool_failed_' + name;
+}
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { encoding: 'utf8', timeout: 600000, maxBuffer: 256 * 1024 * 1024, ...options });
-  if (result.error || result.status !== 0) throw new Error('backup_tool_failed_' + path.basename(command));
+  if (result.error || result.status !== 0) throw new Error(toolFailure(command, result.stderr));
   return result.stdout;
 }
 function tool(name) { return process.env.LEADLY_PG_BIN ? path.join(process.env.LEADLY_PG_BIN, name) : name; }
 function connection(value, mode) {
-  const url = new URL(value || 'invalid');
+  let url;
+  try { url = new URL(value || 'invalid'); } catch { throw new Error('invalid_database_connection'); }
+  const decode = value => { try { return decodeURIComponent(value); } catch { throw new Error('invalid_database_url_encoding'); } };
   if (!['postgres:', 'postgresql:'].includes(url.protocol) || url.hash || [...url.searchParams.keys()].some(k => k !== 'sslmode')) throw new Error('invalid_database_connection');
-  const database = decodeURIComponent(url.pathname.slice(1));
+  const database = decode(url.pathname.slice(1));
   const local = ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
   if (mode === 'restore' && (!local || !/^leadly_restore_[a-z0-9_]+$/.test(database))) throw new Error('restore_target_must_be_isolated_local_database');
   if (mode === 'fixture' && (!local || !/^leadly_fixture_[a-z0-9_]+$/.test(database))) throw new Error('invalid_fixture_database');
-  if (mode === 'backup' && !(url.hostname === 'db.' + project + '.supabase.co' || (url.hostname.endsWith('.pooler.supabase.com') && decodeURIComponent(url.username) === 'postgres.' + project))) throw new Error('unexpected_source_project');
-  const env = { ...process.env, PGHOST: url.hostname.replace(/^\[|\]$/g, ''), PGPORT: url.port || '5432', PGUSER: decodeURIComponent(url.username), PGPASSWORD: decodeURIComponent(url.password), PGDATABASE: database, PGCONNECT_TIMEOUT: '15', PGSSLMODE: local ? 'disable' : 'verify-full', PGAPPNAME: 'leadly-backup' };
+  if (mode === 'backup' && !(url.hostname === 'db.' + project + '.supabase.co' || (url.hostname.endsWith('.pooler.supabase.com') && decode(url.username) === 'postgres.' + project))) throw new Error('unexpected_source_project');
+  const password = decode(url.password);
+  if (mode === 'backup' && /^\[YOUR[-_]PASSWORD\]$/i.test(password)) throw new Error('database_password_placeholder');
+  const env = { ...process.env, PGHOST: url.hostname.replace(/^\[|\]$/g, ''), PGPORT: url.port || '5432', PGUSER: decode(url.username), PGPASSWORD: password, PGDATABASE: database, PGCONNECT_TIMEOUT: '15', PGSSLMODE: local ? 'disable' : 'verify-full', PGAPPNAME: 'leadly-backup' };
   // Empty service-file selectors are errors in libpq, not disabled selectors.
-  delete env.PGSERVICE; delete env.PGSERVICEFILE; delete env.PGOPTIONS;
-  if (local) delete env.PGSSLROOTCERT; else env.PGSSLROOTCERT = 'system';
+  delete env.PGSERVICE; delete env.PGSERVICEFILE; delete env.PGOPTIONS; delete env.PGHOSTADDR;
+  if (local) delete env.PGSSLROOTCERT; else env.PGSSLROOTCERT = path.join(__dirname, 'supabase-ca-2021.crt');
   return env;
 }
 const identifier = s => '"' + s.replace(/"/g, '""') + '"';
@@ -52,21 +69,28 @@ async function backup(options) {
   const env = connection(options.databaseUrl, options.fixture ? 'fixture' : 'backup');
   if (!options.publicKey || !options.output || fs.existsSync(options.output)) throw new Error('backup_output_or_key_invalid');
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'leadly-backup-')); fs.chmodSync(work, 0o700);
+  let stage = 'dump';
   try {
     const payload = path.join(work, 'payload'); fs.mkdirSync(payload, { mode: 0o700 });
     const dump = path.join(payload, 'database.dump');
     run(tool('pg_dump'), ['--format=custom', '--no-owner', '--schema=public', '--schema=auth', '--schema=storage', '--file', dump], { env: { ...env, PGOPTIONS: '-c default_transaction_read_only=on' } });
+    stage = 'manifest';
     const tables = copyCounts(run(tool('pg_restore'), ['--data-only', '--file=-', dump]));
     const roles = JSON.parse(sql(env, "select coalesce(json_agg(json_build_object('name',rolname,'bypassRls',rolbypassrls)),'[]'::json) from pg_roles where rolname not like 'pg_%'"));
+    stage = 'storage';
     const storage = await options.storage(payload);
     const manifest = { version: 1, createdAt: new Date().toISOString(), project, scopes: ['public', 'auth', 'storage'], crossServiceSnapshot: false, tables, roles, storage, databaseSha256: digest(dump) };
     fs.writeFileSync(path.join(payload, 'manifest.json'), JSON.stringify(manifest), { mode: 0o600 });
+    stage = 'verification';
     const verified = options.verifyDatabaseUrl ? verifyPayload(payload, connection(options.verifyDatabaseUrl, 'restore')) : null;
+    stage = 'encryption';
     const archive = path.join(work, 'payload.tar'); run('tar', ['-cf', archive, '-C', payload, '.']);
     const home = gpgHome(work), fingerprint = keyFingerprint(home, options.publicKey);
     fs.mkdirSync(path.dirname(options.output), { recursive: true, mode: 0o700 });
     run('gpg', ['--batch', '--homedir', home, '--trust-model', 'always', '--recipient', fingerprint, '--output', options.output, '--encrypt', archive]); fs.chmodSync(options.output, 0o600);
     return { encrypted: true, tableCount: Object.keys(tables).length, storageFiles: storage.files.length, bytes: fs.statSync(options.output).size, publicKeyFingerprint: fingerprint, restoredBeforeEncryption: verified?.restored === true };
+  } catch (error) {
+    throw new Error(/^[a-z_]+$/.test(error?.message || '') ? error.message : 'backup_' + stage + '_failed');
   } finally { fs.rmSync(work, { recursive: true, force: true }); }
 }
 async function restore(options) {
@@ -121,7 +145,7 @@ function verifyPayload(payload, env) {
     }
     return { restored: true, isolated: true, tablesVerified: tables, storageFilesVerified: m.storage.files.length, productionWritten: false };
 }
-module.exports = { backup, restore, connection, copyCounts, exportStorage };
+module.exports = { backup, restore, connection, copyCounts, exportStorage, toolFailure };
 if (require.main === module) {
   process.umask(0o077);
   const action = process.argv[2];
