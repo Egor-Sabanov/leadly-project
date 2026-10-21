@@ -13,6 +13,16 @@ function storage(rows, files = {}) { return { storage: { listBuckets: async () =
     const env = connection('postgresql://postgres.leezcyaqhozguvcehcpd:my%40password@aws-1-eu.pooler.supabase.com:5432/postgres', 'backup'); assert.equal(env.PGPASSWORD, 'my@password'); assert.equal(env.PGSSLMODE, 'verify-full');
     assert.throws(() => connection('postgres://u:p@other.example/postgres', 'backup'));
   });
+  await test('hosted backups verify the hostname with the official Supabase CA and isolated restores stay local', () => {
+    const { X509Certificate } = require('node:crypto');
+    const env = connection('postgresql://postgres.leezcyaqhozguvcehcpd:fixture@aws-1-eu.pooler.supabase.com:5432/postgres?sslmode=require', 'backup');
+    assert.equal(env.PGSSLMODE, 'verify-full'); assert.equal(env.PGSSLROOTCERT, path.join(__dirname, 'supabase-ca-2021.crt'));
+    const certificate = new X509Certificate(fs.readFileSync(env.PGSSLROOTCERT));
+    assert.equal(certificate.ca, true); assert.equal(certificate.fingerprint256, '80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA');
+    assert(Date.parse(certificate.validTo) > Date.now());
+    const isolated = connection('postgres://u@127.0.0.1/leadly_restore_fixture', 'restore');
+    assert.equal(isolated.PGSSLMODE, 'disable'); assert.equal(isolated.PGSSLROOTCERT, undefined);
+  });
   await test('database failures expose a fixed diagnosis without printing credentials or tool output', () => {
     const privateText = 'postgres://private-user:private-password@private.example/private-db';
     for (const [text, expected] of [['password authentication failed', 'authentication'], ['certificate verify failed', 'certificate'], ['aborting because of server version mismatch', 'client_version_mismatch'], ['permission denied for table private_users', 'permission_denied'], ['connection refused', 'connection']]) {
