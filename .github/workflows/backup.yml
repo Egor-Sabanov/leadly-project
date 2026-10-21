@@ -1,0 +1,61 @@
+name: LEADLY encrypted backup
+on:
+  schedule:
+    - cron: '17 1 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: leadly-encrypted-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: vars.LEADLY_BACKUP_KEY_READY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container: postgres:17-bookworm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install encryption and safe extraction tools
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends gnupg python3 ca-certificates
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install the pinned read-only Storage client
+        run: npm install --prefix .backup-tools --no-save --ignore-scripts --package-lock=false @supabase/supabase-js@2.117.2
+      - name: Start an isolated empty verification database
+        run: |
+          mkdir -p /tmp/leadly-restore-data /tmp/leadly-restore-socket
+          chown postgres:postgres /tmp/leadly-restore-data /tmp/leadly-restore-socket
+          runuser -u postgres -- initdb -D /tmp/leadly-restore-data --auth=trust --no-locale --encoding=UTF8
+          runuser -u postgres -- pg_ctl -D /tmp/leadly-restore-data -l /tmp/leadly-restore.log -o '-h 127.0.0.1 -k /tmp/leadly-restore-socket -p 55473' start
+          createdb -h 127.0.0.1 -p 55473 -U postgres leadly_restore_backup
+      - name: Verify the backup tools on an isolated fixture first
+        env:
+          LEADLY_TEST_PG_USER: postgres
+          LEADLY_TEST_PG_PORT: '55473'
+        run: node ops/backup/test-native.cjs
+      - name: Snapshot, restore and encrypt
+        env:
+          LEADLY_BACKUP_DATABASE_URL: ${{ secrets.LEADLY_BACKUP_DATABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: https://leezcyaqhozguvcehcpd.supabase.co
+          LEADLY_BACKUP_VERIFY_DATABASE_URL: postgres://postgres@127.0.0.1:55473/leadly_restore_backup
+          LEADLY_BACKUP_PUBLIC_KEY_FILE: ops/backup/recipient.asc
+          LEADLY_BACKUP_OUTPUT: .backup-output/leadly.tar.gpg
+          NODE_PATH: .backup-tools/node_modules
+        run: |
+          node ops/backup/backup.cjs backup
+          python3 -c "import pathlib; p=pathlib.Path('.backup-output/leadly.tar.gpg'); assert p.stat().st_size < 32*1024*1024, 'Review backup capacity before uploading a larger archive'"
+      - name: Keep only the encrypted verified archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: leadly-encrypted-backup-${{ github.run_id }}
+          path: .backup-output/leadly.tar.gpg
+          if-no-files-found: error
+          retention-days: 14
+      - name: Stop the temporary verification database
+        if: always()
+        run: runuser -u postgres -- pg_ctl -D /tmp/leadly-restore-data -m fast stop || true
