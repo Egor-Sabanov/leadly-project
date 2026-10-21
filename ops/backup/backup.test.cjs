@@ -31,6 +31,10 @@ function storage(rows, files = {}) { return { storage: { listBuckets: async () =
       assert.equal(env.PGHOST, '127.0.0.1'); assert.equal(env.PGHOSTADDR, undefined);
     } finally { if (original === undefined) delete process.env.PGHOSTADDR; else process.env.PGHOSTADDR = original; }
   });
+  await test('malformed connection strings fail with fixed codes instead of exposing input', () => {
+    assert.throws(() => connection('not-a-connection-private-password', 'backup'), { message: 'invalid_database_connection' });
+    assert.throws(() => connection('postgres://u:bad%password@127.0.0.1/leadly_restore_fixture', 'restore'), { message: 'invalid_database_url_encoding' });
+  });
   await test('database failures expose a fixed diagnosis without printing credentials or tool output', () => {
     const privateText = 'postgres://private-user:private-password@private.example/private-db';
     for (const [text, expected] of [['password authentication failed', 'authentication'], ['certificate verify failed', 'certificate'], ['aborting because of server version mismatch', 'client_version_mismatch'], ['permission denied for table private_users', 'permission_denied'], ['connection refused', 'connection']]) {
