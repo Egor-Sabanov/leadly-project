@@ -57,3 +57,26 @@ Workflow проверены actionlint. Временные индексы сох
 Второй независимый monitor run [39609610912](https://github.com/Egor-Sabanov/leadly-project/actions/runs/39609610912) завершён success в normal mode: status=ok, notification=none. Cache предыдущего runner восстановлен и сохранён. По состоянию на14:10 UTC ни одного event=schedule не наблюдалось; автоматический запуск не считать проверенным по двум manual dispatch.
 
 Владелец установил0014 и её уточнение для порядка callbacks. Проверка итоговой трёхаргументной RPC с null user: service_role ok=false, anon42501; реальных подписок не создано. Повтор старого Telegram update после нового выключения теперь игнорируется атомарно. Настоящий локальный PostgreSQL повторно подтвердил конкурентное сохранение web reminders и bot jobs через итоговую функцию; fixture удалён.
+
+
+## Публикация кнопок — 17:28 МСК
+
+Source `9385b639ff1d68b0211a3df69c09cab6db4b55c8`, Vercel `dpl_4w9ynGp7HUgCnKJhk8W7hBaCp9io`, READY; стабильный адрес подтверждён, production конфигурация присутствует,304 исходных файла совпали с review snapshot.584 проверки/lint/build и4 public проверки прошли.0014 и уточнение порядка callbacks установлены владельцем; безопасный null-user RPC и native concurrency прошли. Production opt-in не создавались, сообщений/писем проверками не отправлялось. Регистрация callback_query ожидается в следующем natural tick, затем нужно настоящее нажатие владельца.
+
+Диагностический backup run39616214172 из review ref queued, завершение ожидается. Отдельный draft [PR #2](https://github.com/Egor-Sabanov/leadly-project/pull/2) содержит только два файла классификации ошибок; main не менялся. Пока первый производственный архив не получен, backup/restore не считается завершённым.
+
+
+## Следующие реальные проверки — 17:35 МСК
+
+Natural cron14:30 UTC зарегистрировал callback_query: notificationCallbacksVerified=true, configuredUrlMatches=true, deliveryErrorPresent=false. Владелец получил ссылку обновления меню и проверку двух режимов в чате; ответ ещё ожидается.
+
+Run39616214172 определил причину первого pg_dump-отказа: certificate_failed. Официальный Supabase Root 2021 CA скачан по адресу из публичной настройки Studio, fingerprint/срок проверены; verify-full и проверка hostname сохранены. Run39617807496 с CA прошёл TLS, но остановился на authentication_failed. Владельцу передано обновление существующего LEADLY_BACKUP_DATABASE_URL из Session pooler именно текущего проекта. Пароль и URI не запрашивались в чат и не читались агентом.
+
+Итоговые10 unit-проверок backup и lint прошли. Дополнительно удаляется унаследованный PGHOSTADDR, чтобы он не переадресовал локальное восстановление. Native fixture preflight на GitHub с CA прошёл; живого архива всё ещё нет. PR #2 расширен ровно до4 operations-файлов (код/тест/README/публичный CA), draft, main не менялся.
+
+
+## Контроль после смены пароля — 17:48 МСК
+
+Владелец подтвердил работу кнопок и сохранения в боте. Затем сменил забытый пароль БД и обновил Secret; run39619340733 дал общий отказ. После безопасного уточнения диагностики run39619923508 установил invalid_database_connection до подключения; ожидается уточнение, сохранена ли полная URI. Секрет агент не читает.11 backup unit/lint и7 native fixture проверок прошли, cleanup завершён. Архива живой базы пока нет.
+
+При повторной публичной проверке первый ответ не прошёл контроль свежести/статуса, последующий GET вернул200/ok. Найден механизм stale-while-revalidate у unstable_cache: первый запрос после паузы может получить старый checkedAt. Подготовлена freshSnapshot с ожиданием нового чтения после30с и объединением concurrent probes;3 новые проверки прошли. Публикация этой правки ещё выполняется. Естественный запуск внешнего GitHub monitor до сих пор не подтверждён.
