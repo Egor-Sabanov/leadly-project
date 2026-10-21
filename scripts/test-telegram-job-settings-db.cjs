@@ -51,6 +51,28 @@ const a = '11111111-1111-4111-8111-111111111111', b = '22222222-2222-4222-8222-2
       await set(a, 'off'); assert.equal(await rpc('leadly_begin_telegram_send', [d.id, d.lease]), false);
       assert.equal((await read(a)).tasks_enabled, true);
     });
+    await test('a duplicate or older webhook cannot undo a later off choice in the bot or on the web', async () => {
+      const click = (mode, id) => rpc('leadly_set_telegram_job_notifications', [a, mode, id]);
+      assert.equal((await click('updates', 600)).ok, true);
+      await all(a, false, true); const off = await read(a);
+      assert.equal((await click('updates', 600)).applied, false); assert.deepEqual(await read(a), off);
+      assert.equal((await click('off', 602)).ok, true); const newer = await read(a);
+      assert.equal((await click('updates', 601)).applied, false); assert.deepEqual(await read(a), newer);
+      assert.equal((await click('daily', 603)).ok, true); assert.equal((await read(a)).opportunity_frequency, 'daily');
+    });
+    await test('invalid callback ordering identifiers do not create preferences', async () => {
+      for (const id of [null, -1, '9007199254740992']) assert.equal((await rpc('leadly_set_telegram_job_notifications', [c, 'updates', id])).ok, false);
+      for (const role of ['anon', 'authenticated']) {
+        await db.exec('reset role;set role ' + role);
+        await assert.rejects(() => rpc('leadly_set_telegram_job_notifications', [a, 'updates', 604]));
+      }
+      await db.exec('reset role;set role service_role');
+    });
+    await test('a fresh Telegram sequence after a week of inactivity is accepted', async () => {
+      await db.query("update public.telegram_notification_settings set bot_update_at=now()-interval '7 days' where user_id=$1", [a]);
+      assert.equal((await rpc('leadly_set_telegram_job_notifications', [a, 'updates', 10])).ok, true);
+      const s = await read(a); assert.equal(s.opportunities_enabled, true); assert.equal(s.bot_update_id, 10); assert.equal(s.tasks_enabled, true);
+    });
     console.log('RESULT ' + n + ' bot job notification SQL checks');
   } finally { await db.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

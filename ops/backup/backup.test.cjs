@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict'), fs = require('node:fs'), os = require('node:os'), path = require('node:path');
-const { connection, copyCounts, exportStorage, restore } = require('./backup.cjs');
+const { connection, copyCounts, exportStorage, restore, toolFailure } = require('./backup.cjs');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'leadly-backup-test-'));
 let n = 0;
 const test = async (name, fn) => { await fn(); n++; console.log('PASS ' + name); };
@@ -12,6 +12,15 @@ function storage(rows, files = {}) { return { storage: { listBuckets: async () =
   await test('source connection is fixed to the approved Supabase project and password stays out of command arguments', () => {
     const env = connection('postgresql://postgres.leezcyaqhozguvcehcpd:my%40password@aws-1-eu.pooler.supabase.com:5432/postgres', 'backup'); assert.equal(env.PGPASSWORD, 'my@password'); assert.equal(env.PGSSLMODE, 'verify-full');
     assert.throws(() => connection('postgres://u:p@other.example/postgres', 'backup'));
+  });
+  await test('database failures expose a fixed diagnosis without printing credentials or tool output', () => {
+    const privateText = 'postgres://private-user:private-password@private.example/private-db';
+    for (const [text, expected] of [['password authentication failed', 'authentication'], ['certificate verify failed', 'certificate'], ['aborting because of server version mismatch', 'client_version_mismatch'], ['permission denied for table private_users', 'permission_denied'], ['connection refused', 'connection']]) {
+      const code = toolFailure('/usr/bin/pg_dump', text + privateText);
+      assert.equal(code, 'backup_database_' + expected + (['authentication', 'certificate', 'connection'].includes(expected) ? '_failed' : ''));
+      assert(!code.includes('private'));
+    }
+    assert.equal(toolFailure('pg_dump', privateText), 'backup_tool_failed_pg_dump');
   });
   await test('row counts include escaped multiline records and empty tables without printing their contents', () => {
     assert.deepEqual(copyCounts('COPY public.notes (id, note) FROM stdin;\n1\tprivate\\ntext\n2\t\\\\.\n\\.\nCOPY auth.users (id) FROM stdin;\n\\.\n'), { 'public.notes': 2, 'auth.users': 0 }); assert.throws(() => copyCounts('not a dump'));

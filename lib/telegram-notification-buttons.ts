@@ -54,7 +54,7 @@ export async function telegramNotificationCallback(input: unknown, db: SupabaseC
   const answer = (text: string, show_alert = false): NotificationCallback => ({ answer: { method: "answerCallbackQuery", callback_query_id: callback.id as string, text, show_alert } });
   const owner = await readOwner(db, Number(sender.id));
   if (!owner || data[2] !== binding(owner.userId)) return answer("Кнопки устарели. Нажми «🔔 Уведомления» в меню бота.", true);
-  const saved = await db.rpc("leadly_set_telegram_job_notifications", { p_user_id: owner.userId, p_frequency: data[1] });
+  const saved = await db.rpc("leadly_set_telegram_job_notifications", { p_user_id: owner.userId, p_frequency: data[1], p_update_id: input.update_id });
   if (saved.error) throw new Error("Telegram settings unavailable");
   if (saved.data?.ok !== true) return answer("Не удалось сохранить выбор. Проверь подключение и подтверждение почты в профиле LEADLY.", true);
   const current = await readOwner(db, Number(sender.id));

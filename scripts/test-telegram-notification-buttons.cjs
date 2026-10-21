@@ -18,7 +18,8 @@ function harness(options = {}) {
     } }; return q;
   }, async rpc(name, args) {
     assert.equal(name, 'leadly_set_telegram_job_notifications');
-    assert.deepEqual(Object.keys(args).sort(), ['p_frequency', 'p_user_id']);
+    assert.deepEqual(Object.keys(args).sort(), ['p_frequency', 'p_update_id', 'p_user_id']);
+    assert.equal(args.p_update_id, 600);
     assert.equal(args.p_user_id, state.owner); writes.push(args);
     if (state.writeError) return { error: {} };
     if (state.refused) return { data: { ok: false } };
