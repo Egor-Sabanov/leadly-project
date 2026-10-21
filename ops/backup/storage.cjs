@@ -34,7 +34,7 @@ async function exportStorage(client, destination, limits = {}) {
         const relative = ['files', id, ...key.split('/')].join('/');
         const file = path.join(destination, relative); fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
         fs.writeFileSync(file, data, { flag: 'wx', mode: 0o600 });
-        files.push({ path: relative, bucket: id, name: key, id: item.id, updatedAt: item.updated_at, serverETag: item.metadata?.eTag || null, size: data.length, sha256: createHash('sha256').update(data).digest('hex') });
+        files.push({ path: relative, bucket: id, name: key, id: item.id, updatedAt: item.updated_at, serverETag: item.metadata?.eTag ?? null, size: data.length, sha256: createHash('sha256').update(data).digest('hex') });
       }
       // A mutable folder cannot silently become a successful stable backup.
       const again = [];
