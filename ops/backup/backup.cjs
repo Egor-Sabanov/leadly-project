@@ -34,7 +34,7 @@ function connection(value, mode) {
   if (mode === 'backup' && !(url.hostname === 'db.' + project + '.supabase.co' || (url.hostname.endsWith('.pooler.supabase.com') && decodeURIComponent(url.username) === 'postgres.' + project))) throw new Error('unexpected_source_project');
   const env = { ...process.env, PGHOST: url.hostname.replace(/^\[|\]$/g, ''), PGPORT: url.port || '5432', PGUSER: decodeURIComponent(url.username), PGPASSWORD: decodeURIComponent(url.password), PGDATABASE: database, PGCONNECT_TIMEOUT: '15', PGSSLMODE: local ? 'disable' : 'verify-full', PGAPPNAME: 'leadly-backup' };
   // Empty service-file selectors are errors in libpq, not disabled selectors.
-  delete env.PGSERVICE; delete env.PGSERVICEFILE; delete env.PGOPTIONS;
+  delete env.PGSERVICE; delete env.PGSERVICEFILE; delete env.PGOPTIONS; delete env.PGHOSTADDR;
   if (local) delete env.PGSSLROOTCERT; else env.PGSSLROOTCERT = path.join(__dirname, 'supabase-ca-2021.crt');
   return env;
 }

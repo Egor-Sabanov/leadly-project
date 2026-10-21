@@ -23,6 +23,14 @@ function storage(rows, files = {}) { return { storage: { listBuckets: async () =
     const isolated = connection('postgres://u@127.0.0.1/leadly_restore_fixture', 'restore');
     assert.equal(isolated.PGSSLMODE, 'disable'); assert.equal(isolated.PGSSLROOTCERT, undefined);
   });
+  await test('an inherited libpq address cannot redirect an isolated restore to another host', () => {
+    const original = process.env.PGHOSTADDR;
+    try {
+      process.env.PGHOSTADDR = '192.0.2.1';
+      const env = connection('postgres://u@127.0.0.1/leadly_restore_fixture', 'restore');
+      assert.equal(env.PGHOST, '127.0.0.1'); assert.equal(env.PGHOSTADDR, undefined);
+    } finally { if (original === undefined) delete process.env.PGHOSTADDR; else process.env.PGHOSTADDR = original; }
+  });
   await test('database failures expose a fixed diagnosis without printing credentials or tool output', () => {
     const privateText = 'postgres://private-user:private-password@private.example/private-db';
     for (const [text, expected] of [['password authentication failed', 'authentication'], ['certificate verify failed', 'certificate'], ['aborting because of server version mismatch', 'client_version_mismatch'], ['permission denied for table private_users', 'permission_denied'], ['connection refused', 'connection']]) {
