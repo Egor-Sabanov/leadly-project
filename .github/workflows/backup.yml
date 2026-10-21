@@ -44,16 +44,16 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://leezcyaqhozguvcehcpd.supabase.co
           LEADLY_BACKUP_VERIFY_DATABASE_URL: postgres://postgres@127.0.0.1:55473/leadly_restore_backup
           LEADLY_BACKUP_PUBLIC_KEY_FILE: ops/backup/recipient.asc
-          LEADLY_BACKUP_OUTPUT: .backup-output/leadly.tar.gpg
+          LEADLY_BACKUP_OUTPUT: backup-output/leadly.tar.gpg
           NODE_PATH: .backup-tools/node_modules
         run: |
           node ops/backup/backup.cjs backup
-          python3 -c "import pathlib; p=pathlib.Path('.backup-output/leadly.tar.gpg'); assert p.stat().st_size < 32*1024*1024, 'Review backup capacity before uploading a larger archive'"
+          python3 -c "import pathlib; p=pathlib.Path('backup-output/leadly.tar.gpg'); assert p.stat().st_size < 32*1024*1024, 'Review backup capacity before uploading a larger archive'"
       - name: Keep only the encrypted verified archive
         uses: actions/upload-artifact@v4
         with:
           name: leadly-encrypted-backup-${{ github.run_id }}
-          path: .backup-output/leadly.tar.gpg
+          path: backup-output/leadly.tar.gpg
           if-no-files-found: error
           retention-days: 14
       - name: Stop the temporary verification database
