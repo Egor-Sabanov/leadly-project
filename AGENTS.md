@@ -1,5 +1,13 @@
 # Работа с LEADLY
 
+## Восстановление базы, файлов и интерфейса проверено — 23 октября, по Москве
+
+Ключи recovery работают. В `umexhmyeheonfsktcyqi` к уже восстановленным SQL/8 users/10 identities добавлены два файла приватного Storage (30 254 байта), SHA256 проверен после загрузки. SQL повторно не запускался. Десять настоящих hosted Auth/RLS проверок двух собственных аккаунтов и восемь browser-сценариев LEADLY прошли; fixtures очищены, исходные 8 users/10 identities/0 sessions/2 files сохранены. Письма и сообщения не отправлялись. Браузер обращался к настоящему recovery API через Node с настроенным proxy и проверкой TLS; внешний hosted-вход владельца остаётся отдельным критерием.
+
+Создан отдельный Vercel `leadly-recovery-check`, защита Authentication для ALL deployments фактически проверена анонимным 302 на SSO. Preview dpl_Fjycthasz58xb6LCyJLCunYGV84M READY/Next16.4.2. Серверный ключ в Vercel ещё не установлен: binding разрешает только recovery Supabase origin; штатное расширение назначения отклонено без сохранения draft. Не извлекать ключи и не обходить это ограничение. Нужен один шаг владельца: recovery service_role → SUPABASE_SERVICE_ROLE_KEY, только Preview нового Vercel-проекта. Затем redeploy и настоящий вход владельца. Production key/URL не менять. Полный RTO пока не измерен.
+
+Независимо подтверждены npm/GitHub advisory для Next16.4.0; подготовлено обновление next/eslint-config-next16.4.2 и lockfile, audit production dependencies0. Изолированный preview и browser-сценарии на16.4.2 прошли; полный корневой check ещё выполняется, production пока16.4.0. Проверить и выпустить patch обычным Vercel deployment, не объединяя main без отдельного решения владельца. HEAD42c4dfc/исходный index сохранять. [Результаты](docs/RECOVERY-RESULT-2026-10-23.md). Исторические блоки ниже с unset/Storage pending устарели.
+
 ## Hosted SQL восстановлен — 22 октября, 18:23 UTC
 
 В umexhmyeheonfsktcyqi выполнен отдельный транзакционный SQL-перенос из проверенного natural backup39731889214 (SHA256d0e809cee3821d436415ed5a9f90e99aae3ba38c6cc1913320f0182100b413d9).33 public tables,8 Auth users,10 identities проверены;26 постоянных public-таблиц и обе Auth-таблицы сверены по counts/hashes,остальные public-таблицы — по явным исключениям/выключению подписки. Managed constraints130/defaults87/functions23 и7 Storage triggers не изменились. Старых sessions/one-time tokens0,автоуведомления выключены. Production/runtime/main не менялись. ЦЕЛЬ ТЕПЕРЬ ЗАНЯТА:не повторять executeRecoveryDatabase,не очищать её ради повторной установки. Следующий этап — только Storage/изолированный вход.

@@ -1,5 +1,13 @@
 # LEADLY — точка продолжения
 
+## Восстановление базы, файлов и интерфейса проверено — 23 октября, по Москве
+
+Ключи recovery работают. В `umexhmyeheonfsktcyqi` к уже восстановленным SQL/8 users/10 identities добавлены два файла приватного Storage (30 254 байта), SHA256 проверен после загрузки. SQL повторно не запускался. Десять настоящих hosted Auth/RLS проверок двух собственных аккаунтов и восемь browser-сценариев LEADLY прошли; fixtures очищены, исходные 8 users/10 identities/0 sessions/2 files сохранены. Письма и сообщения не отправлялись. Браузер обращался к настоящему recovery API через Node с настроенным proxy и проверкой TLS; внешний hosted-вход владельца остаётся отдельным критерием.
+
+Создан отдельный Vercel `leadly-recovery-check`, защита Authentication для ALL deployments фактически проверена анонимным 302 на SSO. Preview dpl_Fjycthasz58xb6LCyJLCunYGV84M READY/Next16.4.2. Серверный ключ в Vercel ещё не установлен: binding разрешает только recovery Supabase origin; штатное расширение назначения отклонено без сохранения draft. Не извлекать ключи и не обходить это ограничение. Нужен один шаг владельца: recovery service_role → SUPABASE_SERVICE_ROLE_KEY, только Preview нового Vercel-проекта. Затем redeploy и настоящий вход владельца. Production key/URL не менять. Полный RTO пока не измерен.
+
+Независимо подтверждены npm/GitHub advisory для Next16.4.0; подготовлено обновление next/eslint-config-next16.4.2 и lockfile, audit production dependencies0. Изолированный preview и browser-сценарии на16.4.2 прошли; полный корневой check ещё выполняется, production пока16.4.0. Проверить и выпустить patch обычным Vercel deployment, не объединяя main без отдельного решения владельца. HEAD42c4dfc/исходный index сохранять. [Результаты](RECOVERY-RESULT-2026-10-23.md). Исторические блоки ниже с unset/Storage pending устарели.
+
 ## Hosted SQL-перенос завершён — 22 октября, 18:23 UTC
 
 В отдельной цели umexhmyeheonfsktcyqi восстановлены и проверены33 public tables,8 аккаунтов и10 identities из natural backup39731889214. Managed-структура новой платформы сохранена,старые sessions/one-time tokens отсутствуют,рассылки в копии выключены. Production/runtime/main не менялись. Эта цель теперь занята:SQL-перенос не повторять и не сбрасывать её.78 operations checks,полный637 check/lint/build и6 native PG-сценариев прошли;фактическая проверка данных после COMMIT тоже прошла. Временные DB/plaintext удалены. [Подробности](../ops/backup/HOSTED-RECOVERY.md).
