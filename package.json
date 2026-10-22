@@ -21,7 +21,7 @@
     "telegram:setup": "node scripts/setup-telegram.cjs",
     "setup:profile-storage": "node --env-file-if-exists=.env.local scripts/setup-profile-storage.cjs",
     "sources:sync": "node --env-file-if-exists=.env.local scripts/sync-sources.cjs",
-    "test:assets": "node scripts/test-account-assets.cjs && node scripts/test-outreach-selection.cjs",
+    "test:assets": "node scripts/test-account-assets.cjs && node scripts/test-outreach-selection.cjs && node scripts/test-avatar-cache.cjs",
     "check:readiness": "node --env-file-if-exists=.env.local scripts/check-readiness.cjs",
     "check:deployment": "node --env-file-if-exists=.env.local scripts/check-deployment.cjs",
     "test:deployment": "node scripts/test-deployment.cjs",

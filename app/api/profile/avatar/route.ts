@@ -30,14 +30,59 @@ async function access(request: Request, mutation = false) {
       account: null,
       admin: null,
     };
+  let avatarVersion = "";
+  if (request.method === "GET") {
+    const { data: profile, error } = await auth
+      .account!.supabase.from("profiles")
+      .select("avatar_url")
+      .eq("id", auth.account!.user.id)
+      .maybeSingle();
+    if (error)
+      return {
+        error: NextResponse.json(
+          { error: "Не удалось загрузить фото. Попробуй ещё раз." },
+          { status: 503, headers: { "Cache-Control": "private, no-store" } },
+        ),
+        account: null,
+        admin: null,
+      };
+    if (!profile?.avatar_url)
+      return {
+        error: new NextResponse(null, {
+          status: 404,
+          headers: { "Cache-Control": "private, no-store" },
+        }),
+        account: null,
+        admin: null,
+      };
+    avatarVersion = createHash("sha256")
+      .update(profile.avatar_url)
+      .digest("hex");
+  }
   return {
     error: null,
     account: auth.account!,
     admin: createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {
-        fetch: (input, init) =>
-          fetch(input, { ...init, signal: AbortSignal.timeout(15000) }),
+        fetch: (input, init) => {
+          const target = new URL(
+            typeof input === "string"
+              ? input
+              : input instanceof URL
+                ? input.href
+                : input.url,
+          );
+          // Storage's CDN can retain an overwritten or deleted object.
+          // Use the saved profile version, independent of client query strings.
+          if (avatarVersion && target.pathname.startsWith("/storage/v1/object/"))
+            target.searchParams.set("v", avatarVersion);
+          return fetch(target, {
+            ...init,
+            cache: "no-store",
+            signal: AbortSignal.timeout(15000),
+          });
+        },
       },
     }),
   };
