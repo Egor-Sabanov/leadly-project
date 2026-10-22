@@ -426,6 +426,7 @@ function readerDb(pages, onRange = () => {}) {
         select: () => chain,
         eq: () => chain,
         or: () => chain,
+        lte: () => chain,
         order: () => chain,
         range: async (start, end) => {
           onRange(start, end);
@@ -460,7 +461,7 @@ tests.push(
     },
   ],
   [
-    "reader has a hard scan limit and never includes uncertain content",
+    "reader reaches the catalogue end without including uncertain content",
     async () => {
       let calls = 0;
       const page = {
@@ -473,7 +474,7 @@ tests.push(
       const result = await loadRussianOpportunities(
         readerDb(Array(6).fill(page), () => calls++),
       );
-      assert.equal(calls, 5);
+      assert.equal(calls, 7);
       assert.equal(result.data.length, 0);
     },
   ],

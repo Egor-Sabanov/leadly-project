@@ -42,7 +42,7 @@ export default async function OpportunitiesPage({
     { data: userSkills, error: userSkillsError },
     { data: userServices, error: userServicesError },
   ] = await Promise.all([
-    loadRussianOpportunities(supabase, 500),
+    loadRussianOpportunities(supabase, "all"),
     supabase
       .from("user_opportunities")
       .select("opportunity_id,status,is_saved")
@@ -141,17 +141,36 @@ export default async function OpportunitiesPage({
   });
 
   if (scoredRows.length && !stateError) {
-    const { error } = await supabase
-      .from("opportunity_scores")
-      .upsert(scoredRows, {
-        onConflict: "opportunity_id,user_id,algorithm_version",
-      });
-    if (error) console.info(JSON.stringify({ event: "opportunity_score_history_unavailable" }));
+    for (let offset = 0; offset < scoredRows.length; offset += 500) {
+      const { error } = await supabase
+        .from("opportunity_scores")
+        .upsert(scoredRows.slice(offset, offset + 500), {
+          onConflict: "opportunity_id,user_id,algorithm_version",
+        });
+      if (error) {
+        console.info(JSON.stringify({ event: "opportunity_score_history_unavailable" }));
+        break;
+      }
+    }
   }
 
   const scoreById = new Map(scoredRows.map((row) => [row.opportunity_id, row]));
   const items = eligibleOpportunities.map((item) => ({
-    ...item,
+    id: item.id,
+    title: item.title,
+    company_name: item.company_name,
+    description: item.description,
+    source_url: item.source_url,
+    category: item.category,
+    location: item.location,
+    remote: item.remote,
+    budget_min: item.budget_min,
+    budget_max: item.budget_max,
+    currency_code: item.currency_code,
+    competition: item.competition,
+    published_at: item.published_at,
+    discovered_at: item.discovered_at,
+    type: item.type,
     status: stateById.get(item.id)?.status || "new",
     is_saved: stateById.get(item.id)?.is_saved || false,
     match_score: scoreById.get(item.id)?.match_score ?? null,

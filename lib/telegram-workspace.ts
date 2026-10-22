@@ -58,7 +58,7 @@ export async function telegramWorkspace(command: WorkspaceCommand, db: SupabaseC
 export type TelegramProfile = { headline?: string | null; skills_summary?: string | null; onboarding_completed?: boolean | null; timezone?: string | null };
 export async function telegramOpportunityRows(db: SupabaseClient, id: string, profile: TelegramProfile | null) {
   const [feed, preferences, skillRows, serviceRows] = await Promise.all([
-    loadRussianOpportunities(db, 500),
+    loadRussianOpportunities(db, "all"),
     db.from("user_preferences").select("preferred_opportunity_types").eq("user_id", id).maybeSingle(),
     db.from("profile_skills").select("skills(name)").eq("user_id", id),
     db.from("profile_services").select("services(name)").eq("user_id", id),

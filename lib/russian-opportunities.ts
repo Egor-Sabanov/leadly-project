@@ -21,21 +21,28 @@ export type RussianOpportunity = {
 };
 export async function loadRussianOpportunities(
   supabase: SupabaseClient<any, "public", "public", any, any>,
-  limit = 100,
+  limit: number | "all" = 100,
 ) {
   const data: RussianOpportunity[] = [];
+  const target = limit === "all" ? Infinity : limit;
+  const pageSize = limit === "all" ? 500 : 100;
+  // Keep one time boundary throughout the scan; newly discovered jobs join
+  // the next refresh instead of shifting the offsets of this catalogue.
+  const snapshotAt = new Date().toISOString();
   let scanned = 0;
-  for (let page = 0; page < 5 && data.length < limit; page++) {
+  for (let page = 0; data.length < target; page++) {
     const response = await supabase
       .from("opportunities")
       .select(
         "id,title,company_name,description,source_url,category,location,remote,budget_min,budget_max,currency_code,competition,published_at,discovered_at,type,raw_metadata,expires_at",
       )
       .eq("is_active", true)
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .or(`expires_at.is.null,expires_at.gt.${snapshotAt}`)
+      .lte("discovered_at", snapshotAt)
       .order("published_at", { ascending: false, nullsFirst: false })
       .order("discovered_at", { ascending: false })
-      .range(page * 100, page * 100 + 99);
+      .order("id", { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
     if (response.error)
       return {
         data: [] as RussianOpportunity[],
@@ -45,7 +52,7 @@ export async function loadRussianOpportunities(
     const rows = (response.data || []) as RussianOpportunity[];
     scanned += rows.length;
     data.push(...rows.filter(isRussianOpportunity));
-    if (rows.length < 100) break;
+    if (rows.length < pageSize) break;
   }
-  return { data: data.slice(0, limit), error: null, scanned };
+  return { data: limit === "all" ? data : data.slice(0, limit), error: null, scanned };
 }
