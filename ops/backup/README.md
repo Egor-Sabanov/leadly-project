@@ -1,5 +1,7 @@
 # Зашифрованная копия LEADLY
 
+Состояние22 октября2026:настоящая копия восстановлена локально(68 таблиц/2 файла),а SQL-часть — в отдельном hosted recovery-проекте(33 public tables/8 аккаунтов/10 identities). Storage и настоящий вход там ещё проверяются. Актуальный исполнитель и границы — [HOSTED-RECOVERY.md](HOSTED-RECOVERY.md). Обычный `backup.cjs restore` по-прежнему разрешён только на localhost.
+
 Supabase Free не предоставляет автоматические бэкапы проекта. Этот инструмент читает PostgreSQL и Storage и создаёт отдельный зашифрованный архив. Исходная база не изменяется. Пароли не попадают в аргументы процессов или журнал.
 
 Подключение к живой базе всегда использует `sslmode=verify-full`, даже если URI содержит `sslmode=require`. Публичный [Supabase Root 2021 CA](https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt) включён в `supabase-ca-2021.crt`; адрес подтверждён настройкой `ssl:certificate_url` официального Supabase Studio. [Официальная инструкция](https://supabase.com/docs/guides/platform/ssl-enforcement) требует добавить этот CA для verify-full. SHA256 файла: `700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7`; сертификат действует до26 апреля2031. Проверка имени сервера и TLS не отключаются.

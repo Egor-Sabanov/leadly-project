@@ -1,5 +1,17 @@
 # LEADLY — точка продолжения
 
+## Hosted SQL-перенос завершён — 22 октября, 18:23 UTC
+
+В отдельной цели umexhmyeheonfsktcyqi восстановлены и проверены33 public tables,8 аккаунтов и10 identities из natural backup39731889214. Managed-структура новой платформы сохранена,старые sessions/one-time tokens отсутствуют,рассылки в копии выключены. Production/runtime/main не менялись. Эта цель теперь занята:SQL-перенос не повторять и не сбрасывать её.78 operations checks,полный637 check/lint/build и6 native PG-сценариев прошли;фактическая проверка данных после COMMIT тоже прошла. Временные DB/plaintext удалены. [Подробности](../ops/backup/HOSTED-RECOVERY.md).
+
+Осталось:2 файла через Storage API,закрытый интерфейс и настоящий вход/сценарии. Management ключевой endpoint403;для этого сохранён draft с LEADLY_RECOVERY_SERVICE_ROLE_KEY(секрет только новой цели) и LEADLY_RECOVERY_PUBLISHABLE_KEY(anon/public). Пока они unset,requires_publish=true. Не перезаписывать production key/URL;проверить реальную операцию после ввода и публикации владельцем. Ещё не считать весь recovery drill/RTO завершённым.
+
+## Новый доступ проверен — 22 октября, 17:45 UTC
+
+Cloud configuration опубликована(spec5). После команды владельца «пробуй сейчас» защищённый Management binding использован штатно через api.supabase.com:реальные read-only запросы к umexhmyeheonfsktcyqi прошли, сервер подтвердил transaction_read_only=on. Обычные runtime metadata остаются unknown; это не мешает зафиксировать успешную проверку конкретной операции. Значения токенов не выводились; отзыв ранее показанных токенов не подтверждён.
+
+Новая цель:users/identities/sessions0,buckets/objects0,public relations/functions/types0,Storage policies0;344 managed columns прежние,5 платформенных ролей есть. Семь триггеров — штатные Storage-функции владельца supabase_storage_admin, их нужно сохранить. Production и target не изменялись. Блокировка чтения снята;hosted restore/настоящий вход ещё не выполнены,готового hosted executor нет. Следом подготовить и проверить перенос собственной схемы и постоянных Auth-данных,затем Storage через API новой цели и закрытую проверку входа. Актуальные детали — [цель восстановления](RECOVERY-TARGET-2026-10-22.md).
+
 ## Работа возобновлена — 22 октября 2026
 
 Владелец явно дал команду «продолжаем». Начат следующий технический этап; пауза ниже — история. Порядок остаётся: приложение и бот, затем тарифы. Актуальные результаты: [22 октября](daily/2026-10-22.md), [внешний монитор](../ops/monitor/cloudflare/README.md), [остаток до запуска](NEXT-STEPS.md).
@@ -17,6 +29,8 @@ HEAD42c4dfc и исходный индекс сохранять; dirty worktree 
 При общем прогоне выявлен реальный предел500 в веб-ленте и подборке бота. Исправлен обход до конца актуального каталога;620 check/lint/build прошли.13 локальных feed-сценариев с настоящим заданием за1000-й позицией прошли, общий список1058/профиль87 на момент проверки, fixture очищен. Исправление опубликовано:96927c0/READY dpl_CBYnekcAQHegCZhDkwdRvj37NeY9,323 source-файла сверены, production configuration/checkout сохранены.14 public feed/bot сценариев прошли (1058/87 на момент проверки), genuine job за1000-й позицией виден, fixtures очищены/baseline восстановлен.13 deployment и4 health/access checks прошли, status ok/fresh. CI39804596341 SUCCESS на точном source. Main f178b50 не менялся. Подробности — docs/VERIFICATION-2026-10-22.md.
 
 После публикации natural tick15:30UTC:partial, FL.ru HTTP403, Freelancehunt46/4 и Хабр47/3, imported93 (upserts), Telegram sent1/errors0/pending0/uncertain0. Ошибка подтверждена журналом нового deployment, относится к RSS источника; не откатывать исправление каталога и не маскировать отказ ради зелёного health. Рабочие public checks были ok до этого tick; после tick публичный health503/degraded/fresh (age631ms) — корректное отражение отказа источника. Дальше проверить следующий natural run/доступность FL и продолжать recovery после read-only inventory.
+
+22 октября владелец ввёл Management PAT:backend draft revision21 подтвердил has_saved_binding=true, spec4 применён, но readiness всех bindings пока unknown. Форма показала ошибку подтверждения сохранения; не считать её доказательством отсутствия binding. В пользовательском screenshot открыт сам PAT. Не копировать/использовать/печатать значение из снимка и не делать Management API запросы этим раскрытым токеном. Владельцу указано отозвать только этот scoped recovery token в Supabase, создать новый с тем же project-only Database Read-write/7days и заменить значение существующего защищённого поля на шаге1 формы. После замены проверять runtime-ready и новый read-only preflight. Рабочий Vercel/runtime не менялись.
 
 ## Пауза — 21 октября 2026
 

@@ -2,6 +2,22 @@
 
 Целевой ref: `umexhmyeheonfsktcyqi`. Рабочий ref: `leezcyaqhozguvcehcpd`. Восстановление выполняется только в отдельную цель. Runtime приложения96927c0/READY dpl_CBYnekcAQHegCZhDkwdRvj37NeY9 и main f178b50 не менялись этим этапом.
 
+## SQL-перенос выполнен — 18:23 UTC
+
+После успешной проверки плана на native PostgreSQL17 выполнена одна транзакция в новой цели:33 public tables,8 auth.users,10 auth.identities. Проверка counts и контрольных сумм выполняется до COMMIT и повторно после него;26 постоянных public-таблиц и2 Auth-таблицы совпали. Служебные/временные public-таблицы из явного списка оставлены пустыми,подписки Telegram в копии выключены.130 managed constraints,87 defaults,23 managed functions и7 Storage triggers не изменились. Сессии и одноразовые Auth-токены не перенесены,пользовательские transient-поля очищены.
+
+Цель теперь занята — повторный SQL restore или очистка не нужны. Production не изменялся. Backup local source/fixture DB и plaintext удалены. SQL-фаза18:23:07.253→18:23:18.342UTC около11секунд;это не полноеRTO. Настоящий hosted Auth-вход и2 файла Storage ещё не проверены. [Исполнитель/границы](../ops/backup/HOSTED-RECOVERY.md). Native6 сценариев и весь operations-набор78 проверок прошли;ключи и SQL с пользовательскими данными в Git не включены.
+
+Для следующего этапа нужны отдельные ключи новой цели:Management GET api-keys вернул403,обход не используется. Draft сохраняет LEADLY_RECOVERY_SERVICE_ROLE_KEY(защищённый secret только для хоста новой цели) и LEADLY_RECOVERY_PUBLISHABLE_KEY(anon/publishable для закрытого интерфейса). Эти поля пока unset в процессе. Прежний Management binding продолжает работать;production credentials/alias/webhook не меняются.
+
+## Доступ и свежий preflight — 17:45 UTC
+
+Владелец опубликовал настройки среды и дал команду «пробуй сейчас». Spec5 применён; защищённые Management token и recovery ref доступны процессу. Два вида настоящего read-only запроса к Management API новой цели прошли; PostgreSQL подтвердил transaction_read_only=on. Готовность metadata по-прежнему unknown, поэтому вывод относится к проверенной операции, не ко всем возможным разрешениям. Никакие значения токенов не печатались и не копировались со снимков; отзыв ранее раскрытых токенов не подтверждён.
+
+Проверены нулевые counts users/identities/sessions Auth,buckets/objects Storage,relations/functions/types public и policies Storage.344 столбца managed-таблиц не изменились с первого owner inventory;anon/authenticated/service_role/supabase_auth_admin/supabase_storage_admin присутствуют. Обнаружены7 non-internal triggers:все они штатные функции storage→storage владельца supabase_storage_admin (защита buckets/objects и updated_at),их сохранять. Первый строгий preflight остановился на наличии этих триггеров;после отдельной проверки метаданных они классифицированы как платформенные,а не пользовательские.130 managed constraints подсчитаны,но их полное сравнение с архивом ещё не выполнено.
+
+Ничего не записывалось ни в production,ни в target. Hosted executor ещё не готов,перенос не запускался. Приватные отчёты:recovery-target-live-access.json,recovery-target-preflight-live-v2.json,recovery-target-preflight-verified.json в `/workspace/leadly-artifacts/ops-2026-10-22/`. Последующие исторические записи об отсутствующем доступе относятся к состоянию до spec5.
+
 ## Подтверждено
 
 Владелец передал результат read-only запроса из SQL Editor новой цели, observedAt22.10 16:21:08UTC. PostgreSQL17.11, auth.users0, storage.objects0, пользовательских relations public0. Это снимок на указанное время; наличие пользовательских функций/типов отдельно ещё не проверялось. Установлены managed extensions pg_stat_statements, pgcrypto, plpgsql, supabase_vault, uuid-ossp.
@@ -24,8 +40,10 @@
 
 ## Граница текущего результата
 
-Hosted restore ещё не выполнялся. Готового универсального hosted-executor нет. SQL-доступ в среде пока отсутствует; объявление требования ключа не равно его сохранению/применению. Не просить присылать пароль базы либо ключи в чат и не извлекать существующие Secrets из GitHub/Vercel.
+SQL-фаза hosted restore выполнена отдельным target-bound исполнителем,но полный drill ещё не завершён:нужны Storage и настоящий вход. Записи ниже об отсутствующем исполнителе относятся к предшествующему состоянию. Не просить присылать пароль базы либо ключи в чат и не извлекать существующие Secrets из GitHub/Vercel.
 
 [Общий порядок восстановления](RECOVERY-DRILL.md). [Scoped PAT и разрешения](https://supabase.com/docs/guides/platform/personal-access-tokens). Приватные evidence: `/workspace/leadly-artifacts/ops-2026-10-22/recovery-target-inventory.json`, `recovery-source-inventory.json`, `recovery-compatibility.json`, `recovery-compare.log`; зашифрованный архив вне checkout. В публичный Git исходный CSV, личные данные и материалы расшифровки не включать.
 
 Черновик cloud configuration сохранён:revision обновлён сервером, requires_publish=true. Добавлены только требование `LEADLY_SUPABASE_MANAGEMENT_TOKEN`→`api.supabase.com` и несекретный `LEADLY_RECOVERY_PROJECT_REF`. Существующие bindings, репозиторий, install/start scripts и сеть сохранены. Значения ключа и runtime-ready пока нет; владелец должен в защищённых Environment settings ввести scoped PAT, сохранить и опубликовать конфигурацию. Не считать сохранённый draft применённым доступом.
+
+Обновление доступа:backend revision21 подтвердил сохранённый Management binding, spec4; observed readiness unknown, не ready. UI показывал ошибку подтверждения draft. Затем значение PAT оказалось открыто в присланном screenshot; требуется отзыв этого scoped token и замена защищённого значения новым. Раскрытый токен не использовался, его значение не переносилось в код/логи/Git. До замены Management API вызовы не выполнять.

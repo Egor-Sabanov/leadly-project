@@ -1,0 +1,13 @@
+-- Structure and aggregate counts only. No user rows or credential values.
+select jsonb_build_object(
+ 'readOnly',current_setting('transaction_read_only'),
+ 'observedAt',now(),
+ 'role',current_user,
+ 'constraints',(select coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'table',r.relname,'name',c.conname,'definition',pg_get_constraintdef(c.oid,true)) order by n.nspname,r.relname,c.conname),'[]'::jsonb) from pg_constraint c join pg_class r on r.oid=c.conrelid join pg_namespace n on n.oid=r.relnamespace where n.nspname in ('auth','storage')),
+ 'defaults',(select coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'table',c.relname,'column',a.attname,'expression',pg_get_expr(d.adbin,d.adrelid)) order by n.nspname,c.relname,a.attnum),'[]'::jsonb) from pg_attrdef d join pg_attribute a on a.attrelid=d.adrelid and a.attnum=d.adnum join pg_class c on c.oid=a.attrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('auth','storage')),
+ 'managedFunctions',(select coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'name',p.proname,'arguments',pg_get_function_identity_arguments(p.oid),'definitionHash',md5(pg_get_functiondef(p.oid))) order by n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),'[]'::jsonb) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('auth','storage') and p.prokind in ('f','p')),
+ 'triggers',(select coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'table',c.relname,'name',t.tgname,'functionSchema',pn.nspname,'function',p.proname,'definition',pg_get_triggerdef(t.oid,true)) order by n.nspname,c.relname,t.tgname),'[]'::jsonb) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace join pg_proc p on p.oid=t.tgfoid join pg_namespace pn on pn.oid=p.pronamespace where n.nspname in ('auth','storage') and not t.tgisinternal),
+ 'permissions',jsonb_build_object('authUsersInsert',has_table_privilege(current_user,'auth.users','INSERT'),'authIdentitiesInsert',has_table_privilege(current_user,'auth.identities','INSERT'),'authUsersTrigger',has_table_privilege(current_user,'auth.users','TRIGGER'),'storageOwnerRole',pg_has_role(current_user,'supabase_storage_admin','USAGE')),
+ 'publicTables',(select coalesce(jsonb_agg(c.relname order by c.relname),'[]'::jsonb) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')),
+ 'publicFunctions',(select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and not exists(select 1 from pg_depend d where d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e'))
+) as recovery_shape;

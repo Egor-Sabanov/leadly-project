@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict');
+const {TARGET,SOURCE,targetGuard,managementQuery,sqlFromDump,sanitizeUser,verifyRestored}=require('./hosted-restore.cjs');
+(async()=>{
+ let checks=0,calls=0;
+ const fetcher=async(url,options)=>{calls++;assert.equal(url,'https://api.supabase.com/v1/projects/'+TARGET+'/database/query');assert.equal(options.redirect,'manual');assert.equal(JSON.parse(options.body).read_only,true);return Response.json([{ok:true}]);};
+ for(const ref of [SOURCE,'','otheremptyprojectref01',TARGET+'/../'+SOURCE])await assert.rejects(()=>managementQuery({ref,token:'fixture-token',query:'select 1',fetcher}),/exact_recovery_target_required/);
+ assert.equal(calls,0);checks++;
+ assert.doesNotThrow(()=>targetGuard(TARGET));checks++;
+ await assert.rejects(()=>managementQuery({ref:TARGET,query:'select 1',fetcher}),/credential_missing/);assert.equal(calls,0);checks++;
+ assert.deepEqual(await managementQuery({ref:TARGET,token:'fixture-token',query:'select 1',fetcher}),[{ok:true}]);checks++;
+ for(const status of [302,401,403,500])await assert.rejects(()=>managementQuery({ref:TARGET,token:'fixture-token',query:'select 1',fetcher:async()=>new Response('private upstream SQL and fixture-token',{status})}),new RegExp('^Error: recovery_management_http_'+status+'$'));checks++;
+ await assert.rejects(()=>managementQuery({ref:TARGET,token:'fixture-token',query:'select 1',fetcher:async()=>{throw new Error('fixture-token');}}),/^Error: recovery_management_transport_failed$/);checks++;
+ const row={id:'same-id',email:'fixture@example.com',encrypted_password:'fixture-hash',email_confirmed_at:'2026-01-01',recovery_token:'old',email_change_token_new:'old',confirmation_sent_at:'old',banned_until:'2027-01-01',email_change:'new@example.com',email_change_confirm_status:1};
+ const cleaned=sanitizeUser(row);assert.equal(cleaned.recovery_token,'');assert.equal(cleaned.email_change_token_new,'');assert.equal(cleaned.confirmation_sent_at,null);assert.equal(cleaned.email_change,'');assert.equal(cleaned.email_change_confirm_status,0);assert.equal(cleaned.encrypted_password,row.encrypted_password);assert.equal(cleaned.email_confirmed_at,row.email_confirmed_at);assert.equal(cleaned.banned_until,row.banned_until);assert.equal(row.recovery_token,'old');checks++;
+ const sql=sqlFromDump('\\restrict ABC123\nCREATE SCHEMA public;\nSET statement_timeout = 0;\nSET row_security = off;\nSELECT pg_catalog.set_config(\'search_path\', \'\', false);\nCREATE TABLE public.fixture(id int);\n\\unrestrict ABC123');assert(!sql.includes('CREATE SCHEMA public'));assert(!sql.includes('statement_timeout'));assert(sql.includes('SET LOCAL row_security'));assert(sql.includes("set_config('search_path', '', true)"));assert(sql.includes('CREATE TABLE public.fixture'));checks++;
+ for(const input of ['\\i /private/key','\\! cat /private/key','\\copy fixture from stdin'])assert.throws(()=>sqlFromDump(input),/unexpected_dump_metacommand/);checks++;
+ assert.equal(sqlFromDump('ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES TO anon;'),'');assert.throws(()=>sqlFromDump('ALTER DEFAULT PRIVILEGES FOR ROLE unreviewed GRANT ALL ON TABLES TO anon;'),/unsupported_default_privilege_restore/);checks++;
+ const plan={summary:{authUsers:1,authIdentities:1,publicTables:1,customAuthTriggers:1},auth:{users:{hash:'expected-users'},identities:{hash:'expected-identities'}},expected:{profiles:{count:1,hash:'expected'}}};
+ const report={authUsers:1,authIdentities:1,authUserHash:'expected-users',authIdentityHash:'expected-identities',sessions:0,oneTimeTokens:0,activeNotifications:0,rlsTables:1,authTriggers:1,tables:[{table:'profiles',count:1,hash:'expected'}]};
+ assert.equal(verifyRestored(plan,[{recovery_verification:report}]).verified,true);checks++;
+ for(const change of [{sessions:1},{oneTimeTokens:1},{activeNotifications:1},{rlsTables:0},{authUsers:0}])assert.throws(()=>verifyRestored(plan,[{recovery_verification:{...report,...change}}]),/verification_failed/);checks++;
+ assert.throws(()=>verifyRestored(plan,[{recovery_verification:{...report,tables:[{table:'profiles',count:1,hash:'changed'}]}}]),/data_verification_failed/);checks++;
+ console.log('RESULT '+checks+' hosted recovery safety checks; outbound requests 0');
+})().catch(e=>{console.error(e);process.exitCode=1;});
