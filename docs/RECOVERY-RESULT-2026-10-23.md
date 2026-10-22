@@ -22,7 +22,9 @@
 
 ## Исправление зависимости
 
-Независимая проверка `npm audit` подтвердила уязвимости Next.js 16.4.0, включая GHSA-2464-fhr4-w9xw, GHSA-p3m5-59mp-jv5r и GHSA-673q-mjm6-r5xr. Официальный advisory указывает исправление в 16.4.1; выбран актуальный patch 16.4.2. В подготовленной сборке обновлены только `next`, `eslint-config-next` и lockfile. Проверенный recovery-preview уже использует 16.4.2; production пока остаётся на прежней версии до завершения проверки и публикации исправления.
+Независимая проверка `npm audit` подтвердила уязвимости Next.js 16.4.0, включая GHSA-2464-fhr4-w9xw, GHSA-p3m5-59mp-jv5r и GHSA-673q-mjm6-r5xr. Официальный advisory указывает исправление в 16.4.1; выбран актуальный patch 16.4.2. В подготовленной сборке обновлены только `next`, `eslint-config-next` и lockfile. Проверенный recovery-preview и рабочий сайт уже используют 16.4.2.
+
+Обновление опубликовано: source `ec444ea9f639d7fc3bcd4bc75871f04d2a690d98`, READY `dpl_79pVzrqUdwukRwEhxbr2kZc3fnfZ`, прежний адрес LEADLY сохранён. Полный `npm run check` (тесты, lint, build) прошёл на Next.js16.4.2; audit рабочих зависимостей — 0 уязвимостей. GitHub CI39868860574 SUCCESS, включая Playwright. После публикации13 deployment-проверок и4 health/access-проверки прошли; status200/ok/fresh.334 source-файла сверены, конфигурация production и checkout сохранены. Main f178b50 не менялся.
 
 ## Что ещё не закрыто
 

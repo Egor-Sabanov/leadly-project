@@ -6,7 +6,9 @@
 
 Создан отдельный Vercel `leadly-recovery-check`, защита Authentication для ALL deployments фактически проверена анонимным 302 на SSO. Preview dpl_Fjycthasz58xb6LCyJLCunYGV84M READY/Next16.4.2. Серверный ключ в Vercel ещё не установлен: binding разрешает только recovery Supabase origin; штатное расширение назначения отклонено без сохранения draft. Не извлекать ключи и не обходить это ограничение. Нужен один шаг владельца: recovery service_role → SUPABASE_SERVICE_ROLE_KEY, только Preview нового Vercel-проекта. Затем redeploy и настоящий вход владельца. Production key/URL не менять. Полный RTO пока не измерен.
 
-Независимо подтверждены npm/GitHub advisory для Next16.4.0; подготовлено обновление next/eslint-config-next16.4.2 и lockfile, audit production dependencies0. Изолированный preview и browser-сценарии на16.4.2 прошли; полный корневой check ещё выполняется, production пока16.4.0. Проверить и выпустить patch обычным Vercel deployment, не объединяя main без отдельного решения владельца. HEAD42c4dfc/исходный index сохранять. [Результаты](docs/RECOVERY-RESULT-2026-10-23.md). Исторические блоки ниже с unset/Storage pending устарели.
+Обновление опубликовано: source `ec444ea9f639d7fc3bcd4bc75871f04d2a690d98`, READY `dpl_79pVzrqUdwukRwEhxbr2kZc3fnfZ`, прежний адрес LEADLY сохранён. Полный `npm run check` (тесты, lint, build) прошёл на Next.js16.4.2; audit рабочих зависимостей — 0 уязвимостей. GitHub CI39868860574 SUCCESS, включая Playwright. После публикации13 deployment-проверок и4 health/access-проверки прошли; status200/ok/fresh.334 source-файла сверены, конфигурация production и checkout сохранены. Main f178b50 не менялся.
+
+Следующий шаг — recovery server key в Preview отдельного Vercel-проекта, затем закрытый redeploy и вход владельца. Никаких ключей в чат. До выполнения этого шага полный RTO не объявлять завершённым. Состояние индекса перед security patch сохранено в приватном metadata.json (SHA256abbe1486…); исходный HEAD42c4dfc не изменён. [Результаты](docs/RECOVERY-RESULT-2026-10-23.md). Исторические блоки ниже с unset/Storage pending устарели.
 
 ## Hosted SQL восстановлен — 22 октября, 18:23 UTC
 
