@@ -12,7 +12,7 @@ async function test(name, fn) { await fn(); count++; console.log('PASS ' + name)
 function fixture(state = 'ok', overrides = {}) {
   const calls = [];
   const fetcher = async (url, options) => {
-    calls.push({ url, options }); assert.equal(options.redirect, 'error');
+    calls.push({ url, options }); assert.equal(options.redirect, 'manual');
     if (url.endsWith('/api/status')) return overrides.probe ? overrides.probe() : Response.json({ status: state, checkedAt: new Date(now).toISOString(), ignoredPrivateValue: 'never-copy-me' }, { status: state === 'ok' ? 200 : 503 });
     if (url.endsWith('/getMe')) return Response.json({ ok: true, result: { id: 123456, is_bot: true, username: overrides.username || 'leadly_work_bot' } });
     assert(url.endsWith('/sendMessage'));
