@@ -62,3 +62,15 @@ Read-only проверки23.10 13:10UTC из облачной среды: Auth 
 Новые приватные доказательства: recovery-smtp-transport-diagnostic.json, recovery-browser-config-diagnostic.json.
 
 Публичный status.supabase.com23.10 13:14UTC сообщил indicator:none/All Systems Operational; это не доказывает исправность отдельной SMTP-операции. Приватное доказательство: recovery-provider-status.json.
+
+Владелец сообщил толькоHTTP200 из Auth Logs. Время/метод/ошибка не переданы, поэтому результат последнего сбоя не определён. Read-only повтор13:17UTC показал ту же старую recovery_sent_at (около35мин); свежая доставка этим не подтверждается. Нужен снимок списка последних Auth Logs со временем и путём /recover, без токенов/паролей. Доказательство: recovery-after-owner-http200.json.
+
+## Получена конкретная ошибка загрузки шаблона
+
+Владелец передал `templatemailer: template type "recovery": Get "https://api.supabase.com/platform/auth/umexhmyeheonfsktcyqi/templates/recovery": context canceled`. Это ошибка HTTP-загрузки шаблона. Она не доказывает неверные SMTP-реквизиты или некорректный HTML. Время конкретного нового запроса после SMTP-настройки не сопоставлено; не объявлять найденную запись доказательством каждой последующей попытки.
+
+Public health подтвердил GoTrue v2.197.0. Проверены [исходники этой версии](https://github.com/supabase/auth/blob/v2.197.0/internal/mailer/templatemailer/template.go): fetch использует context запроса и10-секундный timeout; Cache.load после ошибки может вернуть предыдущий либо встроенный шаблон. Поэтому ERROR и итоговый HTTP200 могут сосуществовать. Одно context canceled не объясняет окончательно отсутствие письма.
+
+Владелец приглашён восстановить в recovery проверенный шаблон LEADLY: Subject «Восстановление доступа — LEADLY» и HTML из immutable source99be736. [Raw HTML](https://raw.githubusercontent.com/Egor-Sabanov/leadly-project/99be73678819775028e64579180e4eb683dda33a/supabase/templates/reset-password.html) получен HTTP200 и побайтно совпал с исходником; SHA2562854c0d66b2317123f09ed1de131d460ad9969595f4b5006fbd2e84900e5ea36. Шаблон использует правильный Site URL и explicit-confirmation token_hash, не требует PKCE verifier после перехода из письма. Подтверждение Save пока ожидается. SMTP/ключи повторно менять не предлагается.
+
+Пересохранение HTML восстанавливает необходимую конфигурацию письма, но не убирает зависимость от Supabase platform template endpoint и не считается гарантированным устранением context canceled. После Save нужна одна новая попытка владельца и актуальный результат доставки; если сбой повторится, сопоставить новую запись по времени. Секреты, one-time URL и полный JSON из Auth logs в чат не запрашивать. Доставка и вход по-прежнему не подтверждены. Приватное доказательство целостности: recovery-template-source-check.json.
