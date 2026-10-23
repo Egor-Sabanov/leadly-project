@@ -61,3 +61,9 @@ Natural run39909013660 из main f178b50 SUCCESS,06:01:22→06:02:41UTC. Job п�
 Приватные доказательства продолжения: avatar-cache-resume-full-check.log, avatar-production-deployment.json, avatar-public-deployment-check.json, avatar-production-functional-check.json, recovery-owner-auth-state.json, recovery-mail-config-probe.json.
 
 Публичный health/access после публикации,23.10 12:27UTC: status200/ok, возраст checkedAt545мс; tasks/avatar/monitor-recipient без сессии401. Приватное доказательство: avatar-production-health-access.json.
+
+## Продолжение: письмо восстановления
+
+Владелец сообщил об отсутствии письма; screenshot показал экран подтверждения почты, а не восстановления. Найдена UX-ловушка: «Не пришло письмо?» на recovery переключала в signup resend; для подтверждённого аккаунта нейтральный ответ не означает отправку. Исправление99be736 опубликовано на production READY dpl_Hi8a1JFYFD6ovL6sRSXGhbvsu2ZF и закрытую копию READY dpl_2aT3up9ZQHGGoYXTs2oaqQKz7SQQ. Lint/unit/build и38 UI прошли локально, CI39955169822 SUCCESS;13 public и6 form/health/access проверок прошли. Авторизованный Vercel CLI подтвердил правильную recovery-форму, отдельную подпись подтверждения, app401 и сохранённый SSO302/Authentication ALL.
+
+После правильного запроса владелец получил ограничение попыток. В копии custom SMTP выключен; API Auth config/logs403. Статус SMTP рабочего проекта запрошен, ответа пока нет. Доставка/вход владельца не подтверждены, SMTP/OAuth и RTO остаются открыты. [Подробности и следующий шаг](RECOVERY-MAIL-2026-10-23.md).
