@@ -345,7 +345,7 @@ export function AuthForm({
             >
               {mode === "recovery" || mode === "confirm" ? "Вернуться ко входу" : "Забыли пароль?"}
             </button>
-            {mode !== "confirm" && <button type="button" className="text-link" disabled={busy} onClick={() => changeMode("confirm")}>Не пришло письмо?</button>}
+            {(mode === "signin" || mode === "signup") && <button type="button" className="text-link" disabled={busy} onClick={() => changeMode("confirm")}>Не пришло письмо подтверждения?</button>}
           </div>
           {(mode === "signin" || mode === "signup") && !busy && <SocialAuth options={socialOptions} intent={mode} />}
           <p className="auth-legal">

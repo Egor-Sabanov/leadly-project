@@ -177,6 +177,27 @@ test("email confirmation is a separate compact form without a password", async (
   ).toBe(false);
 });
 
+test("password recovery cannot switch to signup confirmation through missing-mail guidance", async ({
+  page,
+}) => {
+  await page.goto("/auth?mode=signin");
+  const email = page.getByRole("textbox", { name: "Email", exact: true });
+  await email.fill("test@example.com");
+  await page.getByRole("button", { name: "Не пришло письмо подтверждения?", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Подтверди почту.", exact: true })).toBeVisible();
+  await expect(email).toHaveValue("test@example.com");
+  await page.getByRole("button", { name: "Вернуться ко входу", exact: true }).click();
+  await page.getByRole("button", { name: "Забыли пароль?", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Вернём доступ.", exact: true })).toBeVisible();
+  await expect(email).toHaveValue("test@example.com");
+  await expect(page.getByRole("button", { name: /Не пришло письмо/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Отправить ссылку", exact: true }).click();
+  await expect(page.locator(".auth-message[role=alert]")).toContainText("Подключение аккаунтов ещё не настроено");
+  await expect(page.getByRole("heading", { name: "Вернём доступ.", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Отправить письмо повторно", exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test("unverified social email callback gives confirmation guidance without leaking provider text", async ({
   page,
 }) => {
