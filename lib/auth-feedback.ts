@@ -19,6 +19,10 @@ export function authErrorMessage(error: unknown, action: AuthAction): string {
   const status = error && typeof error === "object" && "status" in error ? error.status : undefined;
   if (status === 429 || ["over_email_send_rate_limit", "over_request_rate_limit"].includes(code))
     return "Слишком много попыток. Подожди немного и попробуй снова.";
+  if (status === 504 || code === "request_timeout")
+    return "Сервис входа не ответил вовремя. Попробуй ещё раз чуть позже.";
+  if (typeof status === "number" && status >= 500 && status < 600)
+    return "Сервис входа временно недоступен. Попробуй ещё раз чуть позже.";
   if (code === "leadly_auth_unavailable")
     return "Подключение аккаунтов ещё не настроено. Попробуй позже.";
   if (code === "email_not_confirmed")

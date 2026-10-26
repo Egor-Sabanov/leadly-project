@@ -6,8 +6,9 @@ const {
   mailWaitSeconds,
   emailConfirmation,
   CONFIRMATION_MESSAGE,
-} = createTsLoader()(path.join(__dirname, "../lib/auth-feedback.ts"));
+} = createTsLoader({ TypeError })(path.join(__dirname, "../lib/auth-feedback.ts"));
 const { socialAuthHref } = createTsLoader()(path.join(__dirname, "../lib/auth-providers.ts"));
+const { AuthRetryableFetchError } = require("@supabase/supabase-js");
 const tests = [];
 const test = (name, run) => tests.push([name, run]);
 test("new VK signup avoids a redundant native authorization; sign-in keeps the mapped account flow", () => {
@@ -46,6 +47,29 @@ test("rate limits use Russian guidance regardless of provider message", () => {
     { code: "over_request_rate_limit" },
   ])
     assert.match(authErrorMessage(error, "confirm"), /Слишком много попыток/);
+});
+test("the SDK gateway timeout reports a server delay without exposing provider details", () => {
+  const privateDetails = "Gateway Timeout email@example.com token_hash=private";
+  for (const error of [
+    new AuthRetryableFetchError(privateDetails, 504),
+    { code: "request_timeout", status: 504, message: privateDetails },
+  ]) {
+    assert.equal(
+      authErrorMessage(error, "recovery"),
+      "Сервис входа не ответил вовремя. Попробуй ещё раз чуть позже.",
+    );
+  }
+});
+test("server failures and browser connection failures give different guidance", () => {
+  for (const status of [500, 502, 503])
+    assert.equal(
+      authErrorMessage(new AuthRetryableFetchError("Upstream failure", status), "signin"),
+      "Сервис входа временно недоступен. Попробуй ещё раз чуть позже.",
+    );
+  assert.equal(
+    authErrorMessage(new TypeError("Failed to fetch"), "recovery"),
+    "Не удалось связаться с сервисом. Проверь подключение и попробуй ещё раз.",
+  );
 });
 test("unconfirmed email gives a way to request confirmation again", () =>
   assert.match(
