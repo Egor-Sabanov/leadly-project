@@ -39,6 +39,8 @@ function childFixture(send) {
     const result = await observe({ ...options, timeoutMs: 1000,
       startTail: (args, settings) => {
         assert(args.includes('leadly-owner-monitor')); assert(args.includes('json'));
+        // No sampling filter means all events; pinned Wrangler rejects rate 1.
+        assert(!args.includes('--sampling-rate'));
         assert.equal(settings.env.CLOUDFLARE_ACCOUNT_ID, options.accountId);
         assert(!args.includes(options.env.CLOUDFLARE_API_TOKEN));
         return child = childFixture(instance => instance.stdout.emit('data', JSON.stringify(event(report()), null, 2)));
