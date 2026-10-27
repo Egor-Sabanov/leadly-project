@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const core = require("../core.cjs");
+const { backupFixture, fixturePayload } = require('../backup.fixture.cjs');
 
 const token = "123456:fixture-token-with-at-least-20-characters";
 const chatId = "123456789";
@@ -7,7 +8,7 @@ const request = () => new Request("https://monitor.internal/check", { method: "P
 let count = 0;
 async function test(name, fn) { await fn(); count++; console.log("PASS " + name); }
 function storage(initial) {
-  const values = new Map([["state", initial]]);
+  const values = new Map([["state", initial], ['backupCache', backupFixture().cache], ['backupReleaseId', 'backup-v1']]);
   const writes = [];
   return { writes, get: async (key = "state") => structuredClone(values.get(key)), put: async (key, value) => { values.set(key, structuredClone(value)); if (key === "state") writes.push(structuredClone(value)); } };
 }
@@ -92,7 +93,7 @@ const valid = () => ({ version: 1, lastStatus: null, noticeStatus: null, lastAtt
         if (url.endsWith("/getMe")) return Response.json({ ok: true, result: { id: 123456, is_bot: true, username: "leadly_work_bot" } });
         sends++; throw new Error("must not send");
       };
-      const saved = { get: async () => ({ ...valid(), lastStatus: "degraded", noticeStatus: "degraded" }), put: async () => { throw new Error("private-storage-failure"); } };
+      const saved = { get: async key => key === 'backupCache' ? backupFixture().cache : ({ ...valid(), lastStatus: "degraded", noticeStatus: "degraded" }), put: async () => { throw new Error("private-storage-failure"); } };
       const response = await new OwnerMonitor({ storage: saved }, { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chatId }).fetch(request());
       assert.equal(response.status, 503); assert.equal(sends, 0); assert.deepEqual(await response.json(), { error: "owner_monitor_failed" });
     } finally { global.fetch = original; }
@@ -115,6 +116,43 @@ const valid = () => ({ version: 1, lastStatus: null, noticeStatus: null, lastAtt
     assert.deepEqual(await (await object.fetch(request())).json(), { error: "owner_monitor_failed" });
     const corrupt = new OwnerMonitor({ storage: storage({ privateValue: token }) }, { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chatId });
     assert.deepEqual(await (await corrupt.fetch(request())).json(), { error: "owner_monitor_failed" });
+  });
+  await test('a cold object reads real-shaped GitHub metadata and stores backup evidence without Telegram', async () => {
+    const saved = storage(), original = global.fetch, fixture = backupFixture();
+    await saved.put('backupCache', undefined); let github = 0, telegram = 0;
+    try {
+      global.fetch = async url => {
+        if (url.endsWith('/api/status')) return Response.json({ status: 'ok', checkedAt: new Date().toISOString() });
+        if (url.startsWith('https://api.github.com/')) { github++; return Response.json(fixturePayload(url, [fixture])); }
+        telegram++; throw Error('unexpected_telegram_request');
+      };
+      const object = new OwnerMonitor({ storage: saved }, { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chatId });
+      const result = await (await object.fetch(request())).json();
+      assert.equal(result.status, 'ok'); assert.equal(result.backup, 'ok');
+      assert.equal(github, 3); assert.equal(telegram, 0);
+      const restarted = new OwnerMonitor({ storage: saved }, { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chatId });
+      assert.equal((await (await restarted.fetch(request())).json()).backup, 'ok');
+      assert.equal(github, 3);
+    } finally { global.fetch = original; }
+  });
+  await test('a new release refreshes backup evidence while retaining pending delivery suppression', async () => {
+    const initial = { ...valid(), lastStatus: 'unavailable', noticeStatus: 'unavailable',
+      lastAttemptAt: Date.now(), pending: true };
+    const saved = storage(initial), original = global.fetch, fixture = backupFixture();
+    await saved.put('backupReleaseId', 'release-old'); let github = 0, telegram = 0;
+    try {
+      global.fetch = async url => {
+        if (url.endsWith('/api/status')) return Response.json({ status: 'ok', checkedAt: new Date().toISOString() });
+        if (url.startsWith('https://api.github.com/')) { github++; return Response.json(fixturePayload(url, [fixture])); }
+        telegram++; throw Error('must_not_repeat_delivery');
+      };
+      const env = { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chatId, MONITOR_RELEASE_ID: 'release-new' };
+      assert.equal((await (await new OwnerMonitor({ storage: saved }, env).fetch(request())).json()).notification, 'none');
+      assert.equal(await saved.get('backupReleaseId'), 'release-new');
+      assert.equal((await saved.get('state')).retryAfter, initial.lastAttemptAt + 6 * 3600000);
+      assert.equal(github, 3); assert.equal(telegram, 0);
+      await new OwnerMonitor({ storage: saved }, env).fetch(request()); assert.equal(github, 3);
+    } finally { global.fetch = original; }
   });
   console.log("RESULT " + count + " Cloudflare monitor checks");
 })().catch(error => { console.error(error); process.exitCode = 1; });

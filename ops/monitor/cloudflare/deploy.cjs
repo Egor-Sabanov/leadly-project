@@ -7,6 +7,8 @@ const configPath = path.join(__dirname, "wrangler.jsonc");
 async function deploy({ env = process.env, fetcher = fetch, execute, testId = "" } = {}) {
   if (!env.CLOUDFLARE_API_TOKEN || !env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) throw new Error("monitor_deploy_secrets_missing");
   if (testId && !/^[a-zA-Z0-9_-]{1,64}$/.test(testId)) throw new Error("invalid_setup_test_id");
+  const releaseId = env.MONITOR_RELEASE_ID || 'release-' + Date.now();
+  if (releaseId && !/^[a-zA-Z0-9_-]{1,64}$/.test(releaseId)) throw new Error('invalid_monitor_release_id');
   async function api(endpoint, allowMissing = false) {
     const response = await fetcher("https://api.cloudflare.com/client/v4" + endpoint, {
       headers: { Authorization: "Bearer " + env.CLOUDFLARE_API_TOKEN },
@@ -44,11 +46,23 @@ async function deploy({ env = process.env, fetcher = fetch, execute, testId = ""
     }
     // stdin goes directly to Wrangler; secret values never enter argv or logs.
     await run(["secret", "bulk", "--config", configPath], JSON.stringify({ TELEGRAM_BOT_TOKEN: env.TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID: env.TELEGRAM_CHAT_ID }));
-    await run(["deploy", "--config", configPath, "--keep-vars", "--var", "MONITOR_SETUP_TEST_ID:" + testId]);
-    return { cloudflareMonitorDeployed: true, cronConfigured: true, setupTestRequested: Boolean(testId), naturalExecutionVerified: false };
+    await run(["deploy", "--config", configPath, "--keep-vars", "--var", "MONITOR_SETUP_TEST_ID:" + testId,
+      '--var', 'MONITOR_RELEASE_ID:' + releaseId]);
+    return { cloudflareMonitorDeployed: true, cronConfigured: true, setupTestRequested: Boolean(testId), naturalExecutionVerified: false, accountId: account };
   } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 }
 module.exports = { deploy };
-if (require.main === module) deploy({ testId: process.env.MONITOR_SETUP_TEST_ID || "" })
-  .then(result => console.log(JSON.stringify(result)))
-  .catch(error => { console.error(JSON.stringify({ deployed: false, error: /^[a-z_]+$/.test(error.message) ? error.message : "cloudflare_monitor_deployment_failed" })); process.exitCode = 1; });
+if (require.main === module) {
+  const since = Date.now(); let published = false;
+  deploy({ testId: process.env.MONITOR_SETUP_TEST_ID || '' })
+    .then(async ({ accountId, ...result }) => {
+      published = true;
+      if (process.env.MONITOR_OBSERVE === 'true') {
+        const { observe } = require('./observe.cjs');
+        Object.assign(result, await observe({ accountId, since }));
+      }
+      console.log(JSON.stringify(result));
+    })
+    .catch(error => { console.error(JSON.stringify({ deployed: published, observationVerified: false,
+      error: /^[a-z_]+$/.test(error.message) ? error.message : 'cloudflare_monitor_deployment_failed' })); process.exitCode = 1; });
+}

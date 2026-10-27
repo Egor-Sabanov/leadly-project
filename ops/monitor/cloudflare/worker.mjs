@@ -1,4 +1,5 @@
 import core from "../core.cjs";
+import backup from "../backup.cjs";
 import { DurableObject } from "cloudflare:workers";
 
 const site = "https://leadly-topaz-seven.vercel.app";
@@ -46,19 +47,40 @@ export class OwnerMonitor extends DurableObject {
   }
 
   async check() {
+    const releaseId = this.env.MONITOR_RELEASE_ID || 'backup-v1';
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(releaseId)) throw new Error('invalid_monitor_release_id');
+    if (await this.ctx.storage.get('backupReleaseId') !== releaseId) {
+      // Refresh public backup evidence after an update without clearing delivery
+      // state, Telegram pauses or any previously reported incident.
+      await this.ctx.storage.put('backupCache', null);
+      await this.ctx.storage.put('backupReleaseId', releaseId);
+    }
     const testId = this.env.MONITOR_SETUP_TEST_ID;
     if (testId && !/^[a-zA-Z0-9_-]{1,64}$/.test(testId)) throw new Error("invalid_setup_test_id");
     const test = Boolean(testId && await this.ctx.storage.get("setupTestId") !== testId);
     // Explicit activation test: consume once before any send, including crashes
     // and rate limits. An operator can request another attempt with a new ID.
     if (test) await this.ctx.storage.put("setupTestId", testId);
-    return core.runMonitor({
+    let details;
+    const result = await core.runMonitor({
       site,
       token: this.env.TELEGRAM_BOT_TOKEN,
       chatId: this.env.TELEGRAM_CHAT_ID,
       loadState: () => this.ctx.storage.get("state"),
       saveState: state => this.ctx.storage.put("state", state),
       test,
+      check: async ({ fetcher, now }) => {
+        const [siteStatus, snapshot] = await Promise.all([
+          core.probe(site, fetcher, now),
+          backup.probeBackup({ fetcher, now,
+            loadCache: () => this.ctx.storage.get('backupCache'),
+            saveCache: value => this.ctx.storage.put('backupCache', value) }),
+        ]);
+        details = { site: siteStatus, backup: snapshot.status, snapshotAt: snapshot.snapshotAt,
+          backupVerifiedAt: snapshot.verifiedAt, backupVerification: snapshot.verification };
+        return backup.monitorCheck(siteStatus, snapshot, now);
+      },
     });
+    return { ...result, ...details };
   }
 }
