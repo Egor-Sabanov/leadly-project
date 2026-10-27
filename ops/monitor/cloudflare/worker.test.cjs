@@ -154,5 +154,26 @@ const valid = () => ({ version: 1, lastStatus: null, noticeStatus: null, lastAtt
       await new OwnerMonitor({ storage: saved }, env).fetch(request()); assert.equal(github, 3);
     } finally { global.fetch = original; }
   });
+  await test('an update preserves a provider rate-limit pause and exposes only bounded diagnostics', async () => {
+    const now = Date.now(), saved = storage({ ...valid(), lastStatus: 'unavailable',
+      noticeStatus: 'unavailable', lastAttemptAt: now, pending: true });
+    const limited = { ...backupFixture().cache, checkedAt: now, verifiedAt: 0,
+      nextCheckAt: now + 3600000, snapshot: null, latest: null, error: 'rate_limited' };
+    await saved.put('backupCache', limited); await saved.put('backupReleaseId', 'release-old');
+    const original = global.fetch, originalTimeout = global.setTimeout; let sites = 0;
+    try {
+      global.setTimeout = (callback, ms, ...args) => originalTimeout(callback, ms === 10000 ? 0 : ms, ...args);
+      global.fetch = async url => {
+        assert(url.endsWith('/api/status')); sites++;
+        return Response.json({ status: 'ok', checkedAt: new Date(now).toISOString() });
+      };
+      const env = { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chatId, MONITOR_RELEASE_ID: 'release-new' };
+      const result = await (await new OwnerMonitor({ storage: saved }, env).fetch(request())).json();
+      assert.equal(result.backup, 'unavailable'); assert.equal(result.backupError, 'rate_limited');
+      assert.equal(result.backupNextCheckAt, limited.nextCheckAt); assert.equal(result.notification, 'none');
+      assert.equal(sites, 2); assert.equal((await saved.get('backupCache')).nextCheckAt, limited.nextCheckAt);
+      assert(!JSON.stringify(result).includes(token)); assert(!JSON.stringify(result).includes(chatId));
+    } finally { global.fetch = original; global.setTimeout = originalTimeout; }
+  });
   console.log("RESULT " + count + " Cloudflare monitor checks");
 })().catch(error => { console.error(error); process.exitCode = 1; });
