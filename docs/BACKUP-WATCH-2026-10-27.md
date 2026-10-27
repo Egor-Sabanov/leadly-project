@@ -1,28 +1,41 @@
 # Контроль резервных копий — 27 октября2026
 
-Подготовлен [PR #5](https://github.com/Egor-Sabanov/leadly-project/pull/5), ровно17 operations-файлов, head `85f6ede708c170550207da125f4a337f33f31ae8`, base main `f178b5049c5df4acfecf6b6eb92ec33bffd6cac2`. PR открыт и готов к решению владельца; новое расписание и контроль ещё не активны.
+Контроль опубликован и подтверждён естественным запуском основного Cloudflare Worker. Владелец разрешил объединение PR #5, публикацию монитора и бэкап из main. Исправления обнаруженных препятствий PR #6–#9 вошли в те же17 operations-paths; final main `d9da9e985431d919e9084ab85f10795400d0fe11`. Приложение не затронуто.
 
-## Поведение после публикации
+## Проверенный бэкап
 
-Прежний Cloudflare Worker проверяет сайт каждые5мин и публичные метаданные backup.yml/main собственного GitHub repository каждые15мин. Для пригодного архива нужны успешные snapshot/restore/encrypt/upload шаги и непустой неистёкший encrypted artifact соответствующего run/branch/commit. Возраст считается от начала snapshot. Worker не скачивает и не расшифровывает архив.
+[Ручной запуск40538868468](https://github.com/Egor-Sabanov/leadly-project/actions/runs/40538868468) из maincd1 SUCCESS. Snapshot27.10 16:14:28UTC (19:14:28МСК). До шифрования настоящее изолированное восстановление проверило68 таблиц и2 файла. Encrypted archive1366927 bytes, artifact12750490006 —1367489 bytes со служебной упаковкой, хранится до10 ноября. После upload архив отдельно не скачивался/не расшифровывался.
 
-Предупреждение приходит при возрасте старше24ч, ошибке/пропуске job, отсутствии или неподтверждённых metadata архива, ожидании/работе дольше часа. Краткий отказ GitHub использует недавние доказательства, после часа без проверки приходит отдельное предупреждение. На границе срока выполняется свежее чтение с соблюдением rate limit. Новый пригодный архив снимает backup-предупреждение.
+Расписание в main —01:17/13:17UTC,04:17/16:17МСК. Этот run ручной; первый natural backup нового расписания ещё не наблюдался. Бэкап-код послеcd1 не менялся, повторное копирование ради исправлений monitor не требовалось. GitHub может задерживать schedule; RPO24ч — цель, не гарантия.
 
-Один поток сообщений объединяет состояние сайта и копии. Прежний Durable Object ID, состояние, retry_after, шестичасовые повторы и защита неопределённой отправки сохранены. Публичных управляющих маршрутов нет. Release ID обновляет только backup-кэш после публикации; deploy ожидает естественный cron и новое чтение metadata через пассивный Wrangler tail. При ошибке наблюдения уже опубликованный Worker не считается откатанным.
+## Подтверждённая публикация
 
-Расписание предлагается изменить с одного запуска на01:17/13:17UTC (04:17/16:17МСК). Это запас до целевого RPO24ч, а не гарантия GitHub: исторические задержки достигали почти5ч.
+[Auth publication40550688426](https://github.com/Egor-Sabanov/leadly-project/actions/runs/40550688426) SUCCESS: preflight GitHub200/квота5000, Secret передан проверенным stdin secret writer, version `1bf5b1ea-49aa-4a30-8e5c-1917c5b2262b` опубликована17:27:21.759UTC. Публикация через pinned Wrangler versions upload/deploy сохранила cron; setup_test=false.
 
-## Проверки и границы
+[Независимое наблюдение40551002055](https://github.com/Egor-Sabanov/leadly-project/actions/runs/40551002055) SUCCESS. Оно не публиковало Worker и не получало Telegram secrets. Основной natural tick17:30:08UTC (20:30МСК) вернул site:ok, backup:ok, backupAccess:token, backupError:null. Проверено новое чтение GitHub после публикации; snapshot совпал с16:14:28UTC. Telegram принял служебное сообщение о восстановлении (notification:sent). Это естественное восстановление проверки, отдельного активационного/тестового сообщения не запрашивали.
 
-- 62 Node-проверки:12 прежнего monitor,24 backup,12 Worker,8 deploy,6 observe.
-- Actionlint1.7.12, Wrangler4.151.3 dry-run, настоящий Miniflare/SQLite прошли.
-- Native runtime подтвердил сохранение state/cache после перезапуска, объединение одновременных tick и сообщения о сбое/восстановлении сайта и бэкапа. Все внешние запросы перехвачены; настоящих сообщений0.
-- [Push CI40472344881](https://github.com/Egor-Sabanov/leadly-project/actions/runs/40472344881) и [PR CI40473254895](https://github.com/Egor-Sabanov/leadly-project/actions/runs/40473254895) SUCCESS на точном head85f6ede, включая native runtime.
-- Read-only metadata: natural backup40459931480/artifact12714131218 пригоден, snapshot27.10 06:15:08UTC. Сегодняшний архив отдельно не скачивался/не восстанавливался. Public GitHub access именно из Cloudflare ещё требует подтверждения после публикации; VM-proxy не доказывает этот путь.
-- Mainf178b504, root HEAD42c4dfc и indexSHA256dee578901dfbb40e4afd5ebe29398a202096d09d34498904c08313e8dcd5f3db сохранены. Рабочий runtime7a80cdb не менялся этим PR. Vercel Git-связь выключена, старый main не использовать для app deployment.
+Свежая независимая проверка production17:31:03UTC:HTTP200/statusok, checkedAt менее секунды. Основной checkout/HEAD/индекс сохранены, runtime приложения7a80cdb не менялся.
 
-## План восстановления и оставшиеся шаги
+## Что выявил настоящий запуск
 
-[План аварийного восстановления](https://github.com/Egor-Sabanov/leadly-project/blob/85f6ede708c170550207da125f4a337f33f31ae8/ops/backup/DISASTER-RECOVERY.md) фиксирует данные/Storage/Auth, SMTP/OAuth/домены/Telegram, выключенные расписания, решение о переключении и обратный путь. Настоящее письмо/повторный вход/архивные данные владельца подтверждены27.10. Recovery уже занята: SQL/Storage restore не повторять. Полный RTO не измерен; OAuth/домены и независимое хранение зашифрованного архива остаются открыты.
+Первый update40539369077 остановился до записей: GET schedules возвращает result:{schedules:[...]}, обработчик ожидал массив. Исправлено PR #6.40540546541 успешно опубликовал Worker, но последующее наблюдение упало: Wrangler4.151.3 отвергает --sampling-rate1. Этот параметр убран PR #7; без фильтра передаются все события.
 
-Перед main требуется отдельное решение владельца согласно AGENTS.md. После него объединить только PR #5, один раз запустить backup из нового main и проверить encrypted artifact, опубликовать monitor с setup_test=false, подтвердить natural tick/чтение GitHub. Ручной backup не считается проверкой расписания. Следующий естественный запуск нового расписания наблюдается отдельно. Новые ключи при публичном repository не нужны. Никаких реальных email/Telegram-тестов этим этапом не отправлено.
+Пассивные наблюдения подтвердили работающий cron и site:ok, но backup:unavailable. Закрытый preview в Cloudflare получил GitHub200 и backupok; его результат не был выдан за доступ основного DO. Безопасные backupError/backupNextCheckAt (PR #8) установили точную причину основного DO: анонимный rate limit, следующая попытка17:29:37UTC. Пауза провайдера при обновлении сохранялась.
+
+Владелец сохранил отдельный fine-grained token только Actions Read-only выбранного repository в GitHub Actions Secret LEADLY_MONITOR_GITHUB_TOKEN. PR #9 подключил его к Worker. GitHub metadata Secrets API остаётся403, но реальный GHA preflight200, запись CF secret и natural authenticated probe подтвердили работоспособность. Значение токена не выводилось и не передавалось в чат; URL/argv/state/отчёты его не содержат.
+
+## Поведение и проверки
+
+Сайт проверяется каждые5мин, metadata собственного backup.yml/main — каждые15мин. Для пригодной копии нужны успешные snapshot/restore/encrypt/upload шаги и непустой неистёкший artifact соответствующего run/branch/commit. Возраст считается от начала snapshot. Worker архив не скачивает и не расшифровывает.
+
+Контроль предупреждает об ошибке/пропуске job, отсутствующем/неподтверждённом архиве, ожидании дольше часа, возрасте старше24ч и длительной недоступности metadata API. На границе срока выполняется свежее чтение с соблюдением rate limit. Public→token меняет квоту и позволяет начать авторизованную проверку; в пределах прежней квоты пауза сохраняется. Новый пригодный архив снимает предупреждение. Прежний DO ID/состояние, retry_after, шестичасовые повторы и защита неопределённой отправки сохранены; публичных управляющих маршрутов нет.
+
+70 unit-проверок (12 monitor/26 backup/14 Worker/12 deploy/6 observe), actionlint, dry-run и native Workers/SQLite прошли. Native fixture проверил authenticated metadata, отсутствие GitHub Authorization на сайте/Telegram, restart/cache/coalescing/сбой и восстановление; все внешние запросы перехвачены. [Final main CI40550309853](https://github.com/Egor-Sabanov/leadly-project/actions/runs/40550309853) SUCCESS на точномd9da9e9.
+
+Временные диагностические/публикационные branches не объединены в main:там одноразовые workflow. Итоговый main содержит обычный deployment workflow с optional read-token secret. Root HEAD42c4dfc/indexSHA256dee578901dfbb40e4afd5ebe29398a202096d09d34498904c08313e8dcd5f3db сохранены; рабочее приложение остаётся на7a80cdb. Vercel Git deploy выключен; не заменять приложение старым main и не объединять весь review branch.
+
+## Оставшиеся критерии
+
+Наблюдать первый natural backup нового расписания; подтвердить хранение зашифрованного архива вне GitHub/этой среды. Ключ и фраза уже сохранены владельцем отдельно. Настроить замену ограниченного по сроку GitHub token до его истечения; отзыв/ошибка доступа отражается предупреждением.
+
+[План аварийного восстановления](https://github.com/Egor-Sabanov/leadly-project/blob/d9da9e985431d919e9084ab85f10795400d0fe11/ops/backup/DISASTER-RECOVERY.md) фиксирует данные/Storage/Auth, SMTP/OAuth/домены/Telegram, выключенные расписания, переключение и возврат. Настоящее письмо/повторный вход/архивные данные владельца подтверждены27.10. Recovery уже занята: SQL/Storage restore не повторять. Полный RTO не измерен; OAuth/домены остаются отдельным согласованным этапом.
