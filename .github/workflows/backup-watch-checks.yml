@@ -1,0 +1,40 @@
+name: LEADLY backup monitor checks
+on:
+  push:
+    paths:
+      - 'ops/monitor/**'
+      - '.github/workflows/backup.yml'
+      - '.github/workflows/cloudflare-monitor.yml'
+      - '.github/workflows/backup-watch-checks.yml'
+  pull_request:
+    paths:
+      - 'ops/monitor/**'
+      - '.github/workflows/backup.yml'
+      - '.github/workflows/cloudflare-monitor.yml'
+      - '.github/workflows/backup-watch-checks.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check status, backup evidence and notification state transitions
+        run: |
+          node ops/monitor/monitor.test.cjs
+          node ops/monitor/backup.test.cjs
+          node ops/monitor/cloudflare/worker.test.cjs
+          node ops/monitor/cloudflare/deploy.test.cjs
+          node ops/monitor/cloudflare/observe.test.cjs
+      - name: Install pinned Workers tools without application dependencies
+        run: npm install --prefix "$RUNNER_TEMP/leadly-monitor-tools" --no-save --ignore-scripts --package-lock=false wrangler@4.151.3
+      - name: Build the monitor without publishing
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+        run: node "$RUNNER_TEMP/leadly-monitor-tools/node_modules/wrangler/bin/wrangler.js" deploy --dry-run --config ops/monitor/cloudflare/wrangler.jsonc --outdir "$RUNNER_TEMP/leadly-monitor-build"
+      - name: Verify actual Workers and SQLite with simulated upstreams
+        run: NODE_PATH="$RUNNER_TEMP/leadly-monitor-tools/node_modules" node ops/monitor/cloudflare/runtime-fixture.cjs "$RUNNER_TEMP/leadly-monitor-build/worker.js"

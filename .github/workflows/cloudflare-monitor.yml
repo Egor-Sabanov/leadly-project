@@ -14,7 +14,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 16
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,8 +23,10 @@ jobs:
       - name: Check shared monitor and deployment guards
         run: |
           node ops/monitor/monitor.test.cjs
+          node ops/monitor/backup.test.cjs
           node ops/monitor/cloudflare/worker.test.cjs
           node ops/monitor/cloudflare/deploy.test.cjs
+          node ops/monitor/cloudflare/observe.test.cjs
       - name: Install the pinned deployment tool in a separate directory
         run: npm install --prefix "$RUNNER_TEMP/leadly-monitor-tools" --no-save --ignore-scripts --package-lock=false wrangler@4.151.3
       - name: Build without publishing
@@ -40,7 +42,9 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SETUP_TEST: ${{ inputs.setup_test }}
+          MONITOR_OBSERVE: 'true'
         run: |
           export LEADLY_WRANGLER_BIN="$RUNNER_TEMP/leadly-monitor-tools/node_modules/wrangler/bin/wrangler.js"
+          export MONITOR_RELEASE_ID="release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           if [ "$SETUP_TEST" = 'true' ]; then export MONITOR_SETUP_TEST_ID="activation-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"; fi
           node ops/monitor/cloudflare/deploy.cjs
