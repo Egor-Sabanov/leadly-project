@@ -175,5 +175,27 @@ const valid = () => ({ version: 1, lastStatus: null, noticeStatus: null, lastAtt
       assert(!JSON.stringify(result).includes(token)); assert(!JSON.stringify(result).includes(chatId));
     } finally { global.fetch = original; global.setTimeout = originalTimeout; }
   });
+  await test('switching to the authenticated quota refreshes anonymous evidence without exposing the token', async () => {
+    const now = Date.now(), githubToken = 'github_pat_fixture_read_only';
+    const saved = storage({ ...valid(), lastStatus: 'unavailable', noticeStatus: 'unavailable', lastAttemptAt: now, pending: true });
+    await saved.put('backupCache', { ...backupFixture().cache, checkedAt: now, verifiedAt: 0,
+      nextCheckAt: now + 3600000, snapshot: null, latest: null, error: 'rate_limited' });
+    await saved.put('backupReleaseId', 'release-same'); await saved.put('backupAccess', 'public');
+    const original = global.fetch, fixture = backupFixture(); let github = 0;
+    try {
+      global.fetch = async (url, options) => {
+        if (url.endsWith('/api/status')) { assert(!options.headers?.Authorization); return Response.json({ status: 'ok', checkedAt: new Date().toISOString() }); }
+        assert(url.startsWith('https://api.github.com/')); github++;
+        assert.equal(options.headers.Authorization, 'Bearer ' + githubToken);
+        return Response.json(fixturePayload(url, [fixture]));
+      };
+      const env = { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chatId, MONITOR_RELEASE_ID: 'release-same', LEADLY_MONITOR_GITHUB_TOKEN: githubToken };
+      const result = await (await new OwnerMonitor({ storage: saved }, env).fetch(request())).json();
+      assert.equal(result.backup, 'ok'); assert.equal(result.backupAccess, 'token'); assert.equal(result.notification, 'none');
+      assert.equal(github, 3); assert.equal(await saved.get('backupAccess'), 'token');
+      await new OwnerMonitor({ storage: saved }, env).fetch(request()); assert.equal(github, 3);
+      assert(!JSON.stringify(await saved.get('backupCache')).includes(githubToken)); assert(!JSON.stringify(result).includes(githubToken));
+    } finally { global.fetch = original; }
+  });
   console.log("RESULT " + count + " Cloudflare monitor checks");
 })().catch(error => { console.error(error); process.exitCode = 1; });

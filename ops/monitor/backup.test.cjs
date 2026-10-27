@@ -31,6 +31,32 @@ function scenario(fixtures = [backupFixture(now)], initial = null) {
     fixture.artifact.created_at = new Date(now - 10000).toISOString();
     assert.equal((await scenario([fixture]).run()).status, 'stale');
   });
+  await test('a read-only token is sent only to fixed GitHub API paths and never persisted', async () => {
+    const fixture = backupFixture(now), s = scenario(), token = 'github_pat_fixture_read_only'; let requests = 0;
+    const result = await s.run({ token, fetcher: async (url, init) => {
+      assert(url.startsWith('https://api.github.com/repos/Egor-Sabanov/leadly-project/actions/'));
+      assert.equal(init.redirect, 'manual'); assert.equal(init.headers.Authorization, 'Bearer ' + token);
+      assert(!url.includes(token)); requests++;
+      return Response.json(fixturePayload(url, [fixture]));
+    } });
+    assert.equal(result.status, 'ok'); assert.equal(requests, 3);
+    assert(!JSON.stringify(s.cache()).includes(token)); assert(!JSON.stringify(result).includes(token));
+  });
+  await test('invalid, revoked and redirected token requests cannot leak a token or establish health', async () => {
+    const token = 'github_pat_fixture_private';
+    for (const status of [302, 401]) {
+      const s = scenario(); let requests = 0;
+      const result = await s.run({ token, fetcher: async (_url, init) => {
+        requests++; assert.equal(init.redirect, 'manual'); assert.equal(init.headers.Authorization, 'Bearer ' + token);
+        return Response.json({ message: token }, { status, headers: { location: 'https://untrusted.invalid/' } });
+      } });
+      assert.equal(result.status, 'unavailable'); assert.equal(requests, 1);
+      assert(!JSON.stringify(s.cache()).includes(token)); assert(!JSON.stringify(result).includes(token));
+    }
+    const s = scenario(); let requests = 0;
+    assert.equal((await s.run({ token: 'bad\nprivate', fetcher: async () => { requests++; } })).status, 'unavailable');
+    assert.equal(requests, 0);
+  });
   await test('the age threshold advances during the metadata cache interval', async () => {
     const fixture = backupFixture(now, { age: maxAgeMs - 1000 }); const s = scenario([fixture]);
     assert.equal((await s.run()).status, 'ok');

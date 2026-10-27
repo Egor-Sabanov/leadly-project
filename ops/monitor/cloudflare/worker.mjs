@@ -49,13 +49,16 @@ export class OwnerMonitor extends DurableObject {
   async check() {
     const releaseId = this.env.MONITOR_RELEASE_ID || 'backup-v1';
     if (!/^[a-zA-Z0-9_-]{1,64}$/.test(releaseId)) throw new Error('invalid_monitor_release_id');
-    if (await this.ctx.storage.get('backupReleaseId') !== releaseId) {
+    const access = this.env.LEADLY_MONITOR_GITHUB_TOKEN ? 'token' : 'public';
+    const previousAccess = await this.ctx.storage.get('backupAccess') === 'token' ? 'token' : 'public';
+    if (await this.ctx.storage.get('backupReleaseId') !== releaseId || access !== previousAccess) {
       // Refresh public backup evidence after an update without clearing delivery
       // state, Telegram pauses or any previously reported incident.
       const previous = backup.cacheState(await this.ctx.storage.get('backupCache'));
-      if (!(previous.error === 'rate_limited' && previous.nextCheckAt > Date.now()))
+      if (!(access === previousAccess && previous.error === 'rate_limited' && previous.nextCheckAt > Date.now()))
         await this.ctx.storage.put('backupCache', null);
       await this.ctx.storage.put('backupReleaseId', releaseId);
+      await this.ctx.storage.put('backupAccess', access);
     }
     const testId = this.env.MONITOR_SETUP_TEST_ID;
     if (testId && !/^[a-zA-Z0-9_-]{1,64}$/.test(testId)) throw new Error("invalid_setup_test_id");
@@ -74,14 +77,14 @@ export class OwnerMonitor extends DurableObject {
       check: async ({ fetcher, now }) => {
         const [siteStatus, snapshot] = await Promise.all([
           core.probe(site, fetcher, now),
-          backup.probeBackup({ fetcher, now,
+          backup.probeBackup({ fetcher, now, token: this.env.LEADLY_MONITOR_GITHUB_TOKEN,
             loadCache: () => this.ctx.storage.get('backupCache'),
             saveCache: value => this.ctx.storage.put('backupCache', value) }),
         ]);
         const cached = backup.cacheState(await this.ctx.storage.get('backupCache'));
         details = { site: siteStatus, backup: snapshot.status, snapshotAt: snapshot.snapshotAt,
           backupVerifiedAt: snapshot.verifiedAt, backupVerification: snapshot.verification,
-          backupError: cached.error, backupNextCheckAt: snapshot.nextCheckAt };
+          backupError: cached.error, backupNextCheckAt: snapshot.nextCheckAt, backupAccess: access };
         return backup.monitorCheck(siteStatus, snapshot, now);
       },
     });

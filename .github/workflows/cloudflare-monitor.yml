@@ -41,6 +41,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LEADLY_MONITOR_GITHUB_TOKEN: ${{ secrets.LEADLY_MONITOR_GITHUB_TOKEN }}
           SETUP_TEST: ${{ inputs.setup_test }}
           MONITOR_OBSERVE: 'true'
         run: |

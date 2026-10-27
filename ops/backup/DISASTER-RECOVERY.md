@@ -23,7 +23,7 @@
 | Telegram | Bot token, webhook secret, Mini App URL, подпись сессий | Защищённое хранилище, BotFather и проверенный runtime |
 | Импорт | Новые ключи источников, собственные Vault/cron/lease | Закрытые настройки оператора после готовности приложения |
 | Бэкап | PostgreSQL URI, service-role key Storage, публичный ключ шифрования | Защищённые GitHub Secrets и публичный recipient.asc |
-| Монитор | Cloudflare binding/state, Telegram owner secrets | Существующий deploy workflow и Durable Object |
+| Монитор | Cloudflare binding/state, Telegram owner secrets, LEADLY_MONITOR_GITHUB_TOKEN (только Actions Read-only) | Существующий deploy workflow и Durable Object |
 
 Рабочий runtime27 октября — source7a80cdb67528155ad6c26f45ad0207a289557ce8/Next16.4.2; позднейший проверенный release имеет приоритет. Main содержит отдельно согласованные операции и старый код приложения: не разворачивать приложение из main только потому, что эта ветка используется бэкапом. Не извлекать секреты через SQL или Vercel в обход scope API.
 
