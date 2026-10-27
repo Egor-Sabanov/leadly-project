@@ -10,6 +10,7 @@ const { backupFixture, fixturePayload } = require('../backup.fixture.cjs');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "leadly-worker-fixture-"));
 let mf, status = "ok", probes = 0, sends = 0, github = 0;
 let backup = backupFixture();
+const githubToken = 'github_pat_fixture_read_only';
 function options() {
   return convertV4MiniflareOptions({
     name: "leadly-owner-monitor-fixture",
@@ -26,19 +27,22 @@ function options() {
       TELEGRAM_BOT_TOKEN: "123456:fixture-token-with-at-least-20-characters",
       TELEGRAM_CHAT_ID: "123456789",
       MONITOR_SETUP_TEST_ID: "native-fixture-once",
+      LEADLY_MONITOR_GITHUB_TOKEN: githubToken,
     },
     outboundService: async request => {
       const url = new URL(request.url);
       if (url.origin === "https://leadly-topaz-seven.vercel.app" && url.pathname === "/api/status") {
+        assert.equal(request.headers.get('authorization'), null);
         probes++;
         return Response.json({ status, checkedAt: new Date().toISOString() }, { status: status === "ok" ? 200 : 503 });
       }
       if (url.hostname === 'api.github.com') {
         github++;
-        assert.equal(request.headers.get('authorization'), null);
+        assert.equal(request.headers.get('authorization'), 'Bearer ' + githubToken);
         return Response.json(fixturePayload(url, [backup]));
       }
       assert.equal(url.hostname, "api.telegram.org");
+      assert.equal(request.headers.get('authorization'), null);
       if (url.pathname.endsWith("/getMe")) return Response.json({ ok: true, result: { id: 123456, is_bot: true, username: "leadly_work_bot" } });
       assert(url.pathname.endsWith("/sendMessage"));
       const body = await request.json(); assert.equal(body.chat_id, "123456789"); sends++;
@@ -83,6 +87,7 @@ function basic(result) { return { code: result.code, status: result.status, noti
     const initial = await check();
     assert.deepEqual(basic(initial), { code: 200, status: "ok", notification: "sent" });
     assert.equal(initial.backup, 'ok'); assert.equal(github, 3);
+    assert.equal(initial.backupAccess, 'token'); assert(!JSON.stringify(initial).includes(githubToken));
     assert.equal(sends, 1);
     await mf.dispose(); mf = new Miniflare(options());
     assert.deepEqual(basic(await check()), { code: 200, status: "ok", notification: "none" });
@@ -112,7 +117,8 @@ function basic(result) { return { code: result.code, status: result.status, noti
     assert.equal(sends, 5);
     console.log(JSON.stringify({ nativeWorkersRuntime: true, sqliteStateSurvivedRestart: true,
       backupCacheSurvivedRestart: true, overlappingTicksCoalesced: true,
-      incidentAndRecoveryVerified: true, backupIncidentAndRecoveryVerified: true, realOutboundRequests: 0 }));
+      incidentAndRecoveryVerified: true, backupIncidentAndRecoveryVerified: true,
+      authenticatedMetadataVerified: true, githubTokenKeptOutOfReports: true, realOutboundRequests: 0 }));
   } finally {
     if (mf) await mf.dispose();
     fs.rmSync(root, { recursive: true, force: true });

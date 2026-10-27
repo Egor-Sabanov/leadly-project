@@ -62,11 +62,12 @@ function readRun(run, now) {
     conclusion: run.conclusion, sha: run.head_sha };
 }
 
-async function request(path, fetcher, now) {
+async function request(path, fetcher, now, token) {
   if (!/^\/actions\/(?:workflows\/backup\.yml\/runs\?branch=main&per_page=5|runs\/[1-9]\d*\/(?:artifacts\?per_page=100|jobs\?filter=latest&per_page=5))$/.test(path)) throw new Error('invalid_backup_api_path');
+  if (token && (typeof token !== 'string' || !/^[A-Za-z0-9_]{8,512}$/.test(token))) throw new Error('invalid_backup_read_token');
   const response = await fetcher(api + path, { redirect: 'manual', signal: AbortSignal.timeout(10000),
     headers: { 'User-Agent': 'LEADLY-Backup-Monitor/1.0', Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28' } });
+      'X-GitHub-Api-Version': '2022-11-28', ...(token ? { Authorization: 'Bearer ' + token } : {}) } });
   if (response.status !== 200) {
     const error = new Error('backup_api_unavailable');
     const retry = Number(response.headers.get('retry-after'));
@@ -82,8 +83,8 @@ async function request(path, fetcher, now) {
   return limitedJson(response, 256 * 1024);
 }
 
-async function snapshotFor(run, fetcher, now) {
-  const data = await request('/actions/runs/' + run.id + '/artifacts?per_page=100', fetcher, now);
+async function snapshotFor(run, fetcher, now, token) {
+  const data = await request('/actions/runs/' + run.id + '/artifacts?per_page=100', fetcher, now, token);
   if (!Array.isArray(data.artifacts) || data.artifacts.length > 100 || data.total_count !== data.artifacts.length) throw new Error('invalid_backup_artifacts');
   const candidates = data.artifacts.filter(item => item.name === 'leadly-encrypted-backup-' + run.id && !item.expired);
   if (candidates.length !== 1) return { problem: 'missing' };
@@ -92,7 +93,7 @@ async function snapshotFor(run, fetcher, now) {
       artifact.workflow_run?.id !== run.id || artifact.workflow_run?.head_branch !== 'main' ||
       artifact.workflow_run?.head_sha !== run.sha || !Number.isFinite(artifactAt) || !Number.isFinite(expiresAt) ||
       artifactAt < run.startedAt || artifactAt > now + 60000 || expiresAt <= now) return { problem: 'unverified' };
-  const jobs = await request('/actions/runs/' + run.id + '/jobs?filter=latest&per_page=5', fetcher, now);
+  const jobs = await request('/actions/runs/' + run.id + '/jobs?filter=latest&per_page=5', fetcher, now, token);
   if (!Array.isArray(jobs.jobs) || jobs.total_count !== jobs.jobs.length || jobs.jobs.length !== 1) return { problem: 'unverified' };
   const job = jobs.jobs[0];
   if (job.name !== 'backup' || job.run_id !== run.id || job.conclusion !== 'success' || !Array.isArray(job.steps)) return { problem: 'unverified' };
@@ -106,7 +107,7 @@ async function snapshotFor(run, fetcher, now) {
     artifactAt, expiresAt, size: artifact.size_in_bytes, sha: run.sha } };
 }
 
-async function probeBackup({ loadCache, saveCache, fetcher = fetch, now = Date.now() }) {
+async function probeBackup({ loadCache, saveCache, fetcher = fetch, now = Date.now(), token }) {
   let cache = cacheState(await loadCache());
   if (cache.checkedAt > now + 60000 || cache.verifiedAt > now + 60000 ||
       (cache.snapshot && cache.snapshot.artifactAt > now + 60000) ||
@@ -119,7 +120,7 @@ async function probeBackup({ loadCache, saveCache, fetcher = fetch, now = Date.n
   if (cache.nextCheckAt > now && !crossedDeadline) return cached;
   const next = { ...cache, checkedAt: now, nextCheckAt: now + refreshMs, error: null };
   try {
-    const data = await request('/actions/workflows/backup.yml/runs?branch=main&per_page=5', fetcher, now);
+    const data = await request('/actions/workflows/backup.yml/runs?branch=main&per_page=5', fetcher, now, token);
     if (!Array.isArray(data.workflow_runs) || data.workflow_runs.length > 5) throw new Error('invalid_backup_runs');
     const runs = data.workflow_runs.filter(run => ['schedule', 'workflow_dispatch'].includes(run.event))
       .map(run => readRun(run, now)).sort((a, b) => b.createdAt - a.createdAt || b.id - a.id);
@@ -129,7 +130,7 @@ async function probeBackup({ loadCache, saveCache, fetcher = fetch, now = Date.n
     next.snapshot = null;
     for (const run of runs) {
       if (run.status !== 'completed' || run.conclusion !== 'success') continue;
-      const found = await snapshotFor(run, fetcher, now);
+      const found = await snapshotFor(run, fetcher, now, token);
       if (run.id === next.latest.id && found.problem) next.problem = found.problem;
       if (found.snapshot) { next.snapshot = found.snapshot; break; }
     }

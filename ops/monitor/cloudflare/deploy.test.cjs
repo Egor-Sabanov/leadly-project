@@ -35,5 +35,9 @@ function fixture(existing = false, accounts = [{ id: account }]) {
   const release = fixture(true); await deploy({ env: { ...env, MONITOR_RELEASE_ID: 'release-123-1' }, ...release });
   assert(release.cli.at(-1).args.includes('MONITOR_RELEASE_ID:release-123-1'));
   await assert.rejects(() => deploy({ env: { ...env, MONITOR_RELEASE_ID: 'invalid id' }, ...fixture() }), /invalid_monitor_release_id/);
-  console.log("RESULT 11 Cloudflare deployment checks; no real outbound requests");
+  const githubToken = 'github_pat_fixture_private'; const authenticated = fixture(true);
+  await deploy({ env: { ...env, LEADLY_MONITOR_GITHUB_TOKEN: githubToken }, ...authenticated });
+  assert.equal(JSON.parse(authenticated.cli[0].input).LEADLY_MONITOR_GITHUB_TOKEN, githubToken);
+  assert(!JSON.stringify(authenticated.cli.map(call => call.args)).includes(githubToken));
+  console.log("RESULT 12 Cloudflare deployment checks; no real outbound requests");
 })().catch(error => { console.error(error); process.exitCode = 1; });

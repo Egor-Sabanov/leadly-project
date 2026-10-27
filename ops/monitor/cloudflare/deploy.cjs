@@ -50,7 +50,8 @@ async function deploy({ env = process.env, fetcher = fetch, execute, testId = ""
       await run(["deploy", "--config", bootstrap, "--keep-vars"]);
     }
     // stdin goes directly to Wrangler; secret values never enter argv or logs.
-    await run(["secret", "bulk", "--config", configPath], JSON.stringify({ TELEGRAM_BOT_TOKEN: env.TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID: env.TELEGRAM_CHAT_ID }));
+    await run(["secret", "bulk", "--config", configPath], JSON.stringify({ TELEGRAM_BOT_TOKEN: env.TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID: env.TELEGRAM_CHAT_ID,
+      ...(env.LEADLY_MONITOR_GITHUB_TOKEN ? { LEADLY_MONITOR_GITHUB_TOKEN: env.LEADLY_MONITOR_GITHUB_TOKEN } : {}) }));
     await run(["deploy", "--config", configPath, "--keep-vars", "--var", "MONITOR_SETUP_TEST_ID:" + testId,
       '--var', 'MONITOR_RELEASE_ID:' + releaseId]);
     return { cloudflareMonitorDeployed: true, cronConfigured: true, setupTestRequested: Boolean(testId), naturalExecutionVerified: false, accountId: account };
