@@ -1,51 +1,89 @@
-name: Deploy LEADLY owner monitor
+name: Observe authenticated LEADLY owner monitor
 on:
   workflow_dispatch:
     inputs:
       setup_test:
-        description: Send one activation message to the configured owner
         type: boolean
         default: false
 permissions:
   contents: read
 concurrency:
-  group: leadly-cloudflare-monitor-deploy
+  group: leadly-cloudflare-monitor-observe
   cancel-in-progress: false
 jobs:
-  deploy:
+  observe:
     runs-on: ubuntu-latest
-    timeout-minutes: 16
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Check shared monitor and deployment guards
-        run: |
-          node ops/monitor/monitor.test.cjs
-          node ops/monitor/backup.test.cjs
-          node ops/monitor/cloudflare/worker.test.cjs
-          node ops/monitor/cloudflare/deploy.test.cjs
-          node ops/monitor/cloudflare/observe.test.cjs
-      - name: Install the pinned deployment tool in a separate directory
+      - name: Install pinned log client
         run: npm install --prefix "$RUNNER_TEMP/leadly-monitor-tools" --no-save --ignore-scripts --package-lock=false wrangler@4.151.3
-      - name: Build without publishing
-        env:
-          WRANGLER_SEND_METRICS: 'false'
-        run: node "$RUNNER_TEMP/leadly-monitor-tools/node_modules/wrangler/bin/wrangler.js" deploy --dry-run --config ops/monitor/cloudflare/wrangler.jsonc --outdir "$RUNNER_TEMP/leadly-monitor-build"
-      - name: Check the actual Workers runtime with simulated upstreams
-        run: NODE_PATH="$RUNNER_TEMP/leadly-monitor-tools/node_modules" node ops/monitor/cloudflare/runtime-fixture.cjs "$RUNNER_TEMP/leadly-monitor-build/worker.js"
-      - name: Publish and enable only after setting the owner secrets
+      - name: Observe only the existing Worker without publishing or sending a message
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          LEADLY_MONITOR_GITHUB_TOKEN: ${{ secrets.LEADLY_MONITOR_GITHUB_TOKEN }}
-          SETUP_TEST: ${{ inputs.setup_test }}
-          MONITOR_OBSERVE: 'true'
         run: |
           export LEADLY_WRANGLER_BIN="$RUNNER_TEMP/leadly-monitor-tools/node_modules/wrangler/bin/wrangler.js"
-          export MONITOR_RELEASE_ID="release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          if [ "$SETUP_TEST" = 'true' ]; then export MONITOR_SETUP_TEST_ID="activation-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"; fi
-          node ops/monitor/cloudflare/deploy.cjs
+          node - <<'NODE'
+          const { spawn } = require('node:child_process');
+          const { observe, jsonEvents } = require('./ops/monitor/cloudflare/observe.cjs');
+          (async () => {
+            let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+            if (!accountId) {
+              const response = await fetch('https://api.cloudflare.com/client/v4/accounts?per_page=50', {
+                headers: { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN },
+                redirect: 'manual', signal: AbortSignal.timeout(20000)
+              });
+              if (!response.ok) throw Error('observation_account_read_failed');
+              const body = await response.json();
+              if (body.success !== true || !Array.isArray(body.result) || body.result.length !== 1) throw Error('observation_account_not_explicit');
+              accountId = body.result[0].id;
+            }
+            if (!/^[a-f0-9]{32}$/.test(accountId || '')) throw Error('observation_account_invalid');
+            const scheduleResponse = await fetch('https://api.cloudflare.com/client/v4/accounts/' + accountId + '/workers/scripts/leadly-owner-monitor/schedules', {
+              headers: { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN },
+              redirect: 'manual', signal: AbortSignal.timeout(20000)
+            });
+            const schedules = await scheduleResponse.json();
+            if (!scheduleResponse.ok || schedules.success !== true || !Array.isArray(schedules.result?.schedules)) throw Error('observation_schedules_read_failed');
+            console.log(JSON.stringify({ configuredCronCount: schedules.result.schedules.length,
+              fiveMinuteCronConfigured: schedules.result.schedules.some(item => item.cron === '*/5 * * * *') }));
+            const result = await observe({ accountId, since: Date.parse('2026-10-27T17:25:00Z'),
+              startTail(args, options) {
+                const child = spawn(process.execPath, args, options);
+                const statuses = new Set(['ok', 'degraded', 'unavailable', 'missing', 'failed', 'unverified', 'stalled', 'stale']);
+                const parse = jsonEvents(event => {
+                  console.log(JSON.stringify({ tailEventSeen: true, logCount: Array.isArray(event?.logs) ? event.logs.length : 0,
+                    scheduledEvent: typeof event?.event?.cron === 'string' }));
+                  for (const entry of event?.logs || []) for (const message of entry.message || []) {
+                    if (typeof message !== 'string') continue;
+                    let report; try { report = JSON.parse(message); } catch { continue; }
+                    if (report.error === 'owner_monitor_failed') console.log('{"workerReportFailed":true}');
+                    if (!statuses.has(report.site) || !statuses.has(report.backup)) continue;
+                    const safe = { site: report.site, backup: report.backup };
+                    if (['public', 'token'].includes(report.backupAccess)) safe.backupAccess = report.backupAccess;
+                    if (report.backupError === null || ['rate_limited', 'api_unavailable'].includes(report.backupError)) safe.backupError = report.backupError;
+                    if (Number.isSafeInteger(report.backupNextCheckAt)) safe.backupNextCheckAt = report.backupNextCheckAt;
+                    if (Number.isSafeInteger(report.snapshotAt)) safe.snapshotAt = report.snapshotAt;
+                    if (Number.isSafeInteger(report.backupVerifiedAt)) safe.backupVerifiedAt = report.backupVerifiedAt;
+                    console.log(JSON.stringify({ observedWorkerReport: safe }));
+                  }
+                });
+                child.stdout.on('data', chunk => { try { parse(chunk); } catch {} });
+                child.stderr.on('data', chunk => {
+                  const value = String(chunk);
+                  if (/Authentication error|Unauthorized|not authorized|permission denied/i.test(value)) console.error('{"tailDiagnostic":"authorization"}');
+                  if (/sampling rate must be between/i.test(value)) console.error('{"tailDiagnostic":"invalid_sampling_filter"}');
+                });
+                return child;
+              }
+            });
+            console.log(JSON.stringify({ existingWorkerObserved: true, workerPublishedByThisRun: false, ...result }));
+          })().catch(error => {
+            console.error(JSON.stringify({ observationVerified: false, error: /^[a-z_]+$/.test(error.message) ? error.message : 'observation_failed' }));
+            process.exitCode = 1;
+          });
+          NODE
