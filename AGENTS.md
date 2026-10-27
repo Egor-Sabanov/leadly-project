@@ -1,5 +1,15 @@
 # Работа с LEADLY
 
+## Независимая копия — сохранена владельцем27 октября
+
+По новой команде «делаем» скачан зашифрованный artifact12750490006/run40538868468. ZIP SHA256 совпал с GitHub digest. Пакет /workspace/leadly-backups/offsite-2026-10-27/LEADLY-backup-2026-10-27.zip (1383386 bytes) содержит только зашифрованный файл, SHA256, origin metadata, README и план; private.asc/passphrase не включены. После передачи ссылки ZIP не изменять. Владелец явно подтвердил: «Да — ZIP сохранён вне среды». Сохранение вне GitHub/этой среды подтверждено. Хеш копии на его устройстве отдельно не проверялся. Ключ/фразу повторно не просить.
+
+Скачанный .gpg штатно расшифрован/восстановлен в новой пустой localhost PostgreSQL17:68 таблиц/2 файла, integrity/counts совпали. Кластерinit692мс, createdb35мс, decrypt/restore/verify2481мс, cleanup109мс, весьлокальныйкомпонент3318мс. Временные DB/plaintext удалены; production/hosted target не менялись, owner session/писем/сообщений0. Это НЕ полный RTO. Приватные proof /workspace/leadly-artifacts/offsite-2026-10-27/prepared.json и local-restore.json.
+
+Новый natural backup по расписанию ещё не наступил (проверено27.10 17:39UTC); следующий срок28.10 04:17МСК best-effort. Maind9da9e9/runtime7a80cdb/HEAD42c4dfc/indexSHA256dee578901dfbb40e4afd5ebe29398a202096d09d34498904c08313e8dcd5f3db сохранены. Новых main/app изменений не было.
+
+Recovery inventory read-only подтвердил8 Auth users/2 Storage objects/33 public objects:цель umexhmyeheonfsktcyqi занята, restore/очистку НЕ повторять. Проектный список через scoped PAT403, слоты не установлены. Для следующего полного учения нужен новый пустой Free-проект; вариант временной паузы только старой recovery требует отдельного решения владельца по шагу4 DISASTER-RECOVERY.md. Платные ресурсы/пауза/новые проекты не запускались. Подготовлен конкретный план docs/RTO-EXERCISE-PLAN-2026-10-27.md; итог docs/OFFSITE-COPY-2026-10-27.md.
+
 ## Контроль бэкапов — завершён27 октября2026
 
 Владелец отдельно разрешил объединение PR #5, публикацию monitor и backup из main. PR #5–#9 вошли только в прежние17 operations-paths:main d9da9e985431d919e9084ab85f10795400d0fe11.70 проверок, actionlint/dry-run и native Workers/SQLite прошли, включая авторизованные metadata-запросы без передачи GitHub Authorization сайту/Telegram. PR CI40550017360 и final main CI40550309853 SUCCESS. Runtime приложения7a80cdb не менялся; root HEAD42c4dfc/indexSHA256dee578901dfbb40e4afd5ebe29398a202096d09d34498904c08313e8dcd5f3db сохранены. Не разворачивать приложение из старого main и не объединять весь review branch.
