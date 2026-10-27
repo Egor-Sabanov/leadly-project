@@ -42,14 +42,26 @@ jobs:
               if (body.success !== true || !Array.isArray(body.result) || body.result.length !== 1) throw Error('observation_account_not_explicit');
               accountId = body.result[0].id;
             }
+            if (!/^[a-f0-9]{32}$/.test(accountId || '')) throw Error('observation_account_invalid');
+            const scheduleResponse = await fetch('https://api.cloudflare.com/client/v4/accounts/' + accountId + '/workers/scripts/leadly-owner-monitor/schedules', {
+              headers: { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN },
+              redirect: 'manual', signal: AbortSignal.timeout(20000)
+            });
+            const schedules = await scheduleResponse.json();
+            if (!scheduleResponse.ok || schedules.success !== true || !Array.isArray(schedules.result?.schedules)) throw Error('observation_schedules_read_failed');
+            console.log(JSON.stringify({ configuredCronCount: schedules.result.schedules.length,
+              fiveMinuteCronConfigured: schedules.result.schedules.some(item => item.cron === '*/5 * * * *') }));
             const result = await observe({ accountId, since: Date.parse('2026-10-27T16:24:06.948Z'),
               startTail(args, options) {
                 const child = spawn(process.execPath, args, options);
                 const statuses = new Set(['ok', 'degraded', 'unavailable', 'missing', 'failed', 'unverified', 'stalled', 'stale']);
                 const parse = jsonEvents(event => {
+                  console.log(JSON.stringify({ tailEventSeen: true, logCount: Array.isArray(event?.logs) ? event.logs.length : 0,
+                    scheduledEvent: typeof event?.event?.cron === 'string' }));
                   for (const entry of event?.logs || []) for (const message of entry.message || []) {
                     if (typeof message !== 'string') continue;
                     let report; try { report = JSON.parse(message); } catch { continue; }
+                    if (report.error === 'owner_monitor_failed') console.log('{"workerReportFailed":true}');
                     if (!statuses.has(report.site) || !statuses.has(report.backup)) continue;
                     const safe = { site: report.site, backup: report.backup };
                     if (Number.isSafeInteger(report.snapshotAt)) safe.snapshotAt = report.snapshotAt;
