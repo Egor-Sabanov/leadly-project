@@ -52,7 +52,9 @@ export class OwnerMonitor extends DurableObject {
     if (await this.ctx.storage.get('backupReleaseId') !== releaseId) {
       // Refresh public backup evidence after an update without clearing delivery
       // state, Telegram pauses or any previously reported incident.
-      await this.ctx.storage.put('backupCache', null);
+      const previous = backup.cacheState(await this.ctx.storage.get('backupCache'));
+      if (!(previous.error === 'rate_limited' && previous.nextCheckAt > Date.now()))
+        await this.ctx.storage.put('backupCache', null);
       await this.ctx.storage.put('backupReleaseId', releaseId);
     }
     const testId = this.env.MONITOR_SETUP_TEST_ID;
@@ -76,8 +78,10 @@ export class OwnerMonitor extends DurableObject {
             loadCache: () => this.ctx.storage.get('backupCache'),
             saveCache: value => this.ctx.storage.put('backupCache', value) }),
         ]);
+        const cached = backup.cacheState(await this.ctx.storage.get('backupCache'));
         details = { site: siteStatus, backup: snapshot.status, snapshotAt: snapshot.snapshotAt,
-          backupVerifiedAt: snapshot.verifiedAt, backupVerification: snapshot.verification };
+          backupVerifiedAt: snapshot.verifiedAt, backupVerification: snapshot.verification,
+          backupError: cached.error, backupNextCheckAt: snapshot.nextCheckAt };
         return backup.monitorCheck(siteStatus, snapshot, now);
       },
     });
