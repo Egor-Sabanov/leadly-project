@@ -52,7 +52,7 @@ async function observe({ accountId, since, env = process.env, timeoutMs = 7 * 60
   if (!/^[a-f0-9]{32}$/.test(accountId || '') || !Number.isSafeInteger(since) || since <= 0 ||
       !env.CLOUDFLARE_API_TOKEN || !env.LEADLY_WRANGLER_BIN) throw Error('monitor_observe_not_configured');
   const args = [env.LEADLY_WRANGLER_BIN, 'tail', 'leadly-owner-monitor', '--config',
-    path.join(__dirname, 'wrangler.jsonc'), '--format', 'json', '--sampling-rate', '1'];
+    path.join(__dirname, 'wrangler.jsonc'), '--format', 'json'];
   const child = (startTail || ((args, options) => spawn(process.execPath, args, options)))(args, {
     env: { ...env, CLOUDFLARE_ACCOUNT_ID: accountId, WRANGLER_SEND_METRICS: 'false' },
     stdio: ['ignore', 'pipe', 'pipe'],
