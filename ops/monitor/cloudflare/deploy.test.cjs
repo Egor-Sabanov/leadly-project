@@ -7,7 +7,7 @@ function fixture(existing = false, accounts = [{ id: account }]) {
   const calls = [], cli = [];
   return { calls, cli, fetcher: async (url, options) => {
     assert.equal(options.headers.Authorization, "Bearer " + env.CLOUDFLARE_API_TOKEN); assert.equal(options.redirect, "manual"); calls.push(url);
-    return url.includes("/schedules") ? (existing ? Response.json({ success: true, result: [] }) : new Response(null, { status: 404 })) : Response.json({ success: true, result: accounts });
+    return url.includes("/schedules") ? (existing ? Response.json({ success: true, result: { schedules: [{ cron: "*/5 * * * *" }] } }) : new Response(null, { status: 404 })) : Response.json({ success: true, result: accounts });
   }, execute: async (args, input) => { cli.push({ args, input, config: args[0] === "deploy" ? JSON.parse(fs.readFileSync(args[args.indexOf("--config") + 1], "utf8")) : null }); } };
 }
 (async () => {
@@ -18,6 +18,14 @@ function fixture(existing = false, accounts = [{ id: account }]) {
   assert(!JSON.stringify(fresh.cli.map(x => x.args)).includes(env.TELEGRAM_BOT_TOKEN)); assert(!fs.existsSync(fresh.cli[0].args[2]));
   assert(fresh.cli[2].args.some(value => /^MONITOR_RELEASE_ID:release-\d+$/.test(value)));
   const existing = fixture(true); await deploy({ env, ...existing }); assert.equal(existing.cli.length, 2); assert.equal(existing.cli[0].args[0], "secret");
+  const emptySchedules = fixture(true); const emptyFetch = emptySchedules.fetcher;
+  emptySchedules.fetcher = (url, options) => url.includes('/schedules') ? Response.json({ success: true, result: { schedules: [] } }) : emptyFetch(url, options);
+  await deploy({ env, ...emptySchedules }); assert.equal(emptySchedules.cli.length, 2); assert.equal(emptySchedules.cli[0].args[0], 'secret');
+  const malformedSchedules = fixture(true); const malformedFetch = malformedSchedules.fetcher;
+  malformedSchedules.fetcher = (url, options) => url.includes('/schedules') ? Response.json({ success: true, result: [] }) : malformedFetch(url, options);
+  await assert.rejects(() => deploy({ env, ...malformedSchedules }), /invalid_cloudflare_response/); assert.equal(malformedSchedules.cli.length, 0);
+  const malformedAccounts = fixture(); malformedAccounts.fetcher = async () => Response.json({ success: true, result: { schedules: [] } });
+  await assert.rejects(() => deploy({ env, ...malformedAccounts }), /invalid_cloudflare_response/); assert.equal(malformedAccounts.cli.length, 0);
   const ambiguous = fixture(false, [{ id: account }, { id: "b".repeat(32) }]); await assert.rejects(() => deploy({ env, ...ambiguous }), /cloudflare_account_must_be_explicit/); assert.equal(ambiguous.cli.length, 0);
   const denied = fixture(); denied.fetcher = async () => new Response(null, { status: 403 }); await assert.rejects(() => deploy({ env, ...denied }), /cloudflare_account_or_worker_read_failed/); assert.equal(denied.cli.length, 0);
   const failedSecret = fixture(true); failedSecret.execute = async (args) => { assert.equal(args[0], "secret"); throw new Error("fixture_secret_failure"); };
@@ -27,5 +35,5 @@ function fixture(existing = false, accounts = [{ id: account }]) {
   const release = fixture(true); await deploy({ env: { ...env, MONITOR_RELEASE_ID: 'release-123-1' }, ...release });
   assert(release.cli.at(-1).args.includes('MONITOR_RELEASE_ID:release-123-1'));
   await assert.rejects(() => deploy({ env: { ...env, MONITOR_RELEASE_ID: 'invalid id' }, ...fixture() }), /invalid_monitor_release_id/);
-  console.log("RESULT 8 Cloudflare deployment checks; no real outbound requests");
+  console.log("RESULT 11 Cloudflare deployment checks; no real outbound requests");
 })().catch(error => { console.error(error); process.exitCode = 1; });

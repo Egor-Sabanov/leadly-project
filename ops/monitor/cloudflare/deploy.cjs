@@ -17,12 +17,13 @@ async function deploy({ env = process.env, fetcher = fetch, execute, testId = ""
     if (allowMissing && response.status === 404) return null;
     if (!response.ok) throw new Error("cloudflare_account_or_worker_read_failed");
     const body = await response.json();
-    if (body.success !== true || !Array.isArray(body.result)) throw new Error("invalid_cloudflare_response");
+    if (body.success !== true) throw new Error("invalid_cloudflare_response");
     return body.result;
   }
   let account = env.CLOUDFLARE_ACCOUNT_ID;
   if (!account) {
     const accounts = await api("/accounts?per_page=50");
+    if (!Array.isArray(accounts)) throw new Error("invalid_cloudflare_response");
     if (accounts.length !== 1) throw new Error("cloudflare_account_must_be_explicit");
     account = accounts[0].id;
   }
@@ -35,6 +36,10 @@ async function deploy({ env = process.env, fetcher = fetch, execute, testId = ""
     if (result.error || result.status !== 0) throw new Error("cloudflare_monitor_deploy_step_failed");
   });
   const schedules = await api("/accounts/" + account + "/workers/scripts/leadly-owner-monitor/schedules", true);
+  // The schedules endpoint returns { schedules: [...] }, unlike /accounts.
+  // Validate before any CLI write so an invalid response cannot bootstrap a
+  // dormant replacement for an already configured Worker.
+  if (schedules !== null && (!schedules || !Array.isArray(schedules.schedules))) throw new Error("invalid_cloudflare_response");
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "leadly-monitor-deploy-"));
   try {
     if (schedules === null) {
