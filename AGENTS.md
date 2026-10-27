@@ -1,5 +1,11 @@
 # Работа с LEADLY
 
+## Точка продолжения — 27 октября 2026
+
+Работа активна в прежнем чате. Cloud spec13:connected/bindings ready/policy enforced. Auth config GET теперь200:найден smtp.gmail.com с ошибочным port578. Попытка PATCH только587 отклонена403, ничего не записала. Владелец вручную сохранил587; независимое чтение06:24UTC подтвердило его, из проверенных полей изменился только порт. SMTP credentials заданы, sender/user совпадают, пробелов нет, mailer_autoconfirm=false/hook_send_email_enabled=false. Владелец затем подтвердил настоящее новое письмо, отдельный пароль копии, выход/повторный вход и архивные профиль/сохранения/дела/фото: «Письмо пришло, повторный вход и данные работают». Почтовый сбой и реальный вход после восстановления закрыты; пароль/ссылку не читал. Инструментами писем/сессий владельца0. Полный RTO не измерен; OAuth/домены копии отдельно не восстановлены.
+
+Цель umexhmyeheonfsktcyqi занята:SQL/Storage restore не повторять. Jobs0/scheduler disabled/уведомления off. Google recovery выключен, кнопку не предлагать. Auth read работает, write403 — scope не обходить, новые токены ради известного порта не требовать. API Logs200, но auth_logs query сообщил отсутствующую таблицу; это не отсутствие событий. Патч текста504/5xx source7a80cdb,18 auth-checks/полный check/4 UI/CI40371695952 SUCCESS;27.10 опубликован:production READY dpl_6gNic97b6aPo9WfCQqM1QD12SqFD, Preview READY dpl_Ccfz717oipvS99MmmbKeodidQZqF.32 published checks прошли, productionok/fresh/recoverydegraded, защита и счётчики данных сохранены. Main f178b504/HEAD42c4dfc сохранять, runtime7a80cdb не заменять старым main. Индекс27.10:SHA256dee578901dfbb40e4afd5ebe29398a202096d09d34498904c08313e8dcd5f3db, предыдущие hashes исторические. Следующий блок надёжности — свежесть backup/конфигурационный план/RPO/RTO; приложение/бот перед тарифами. Детали — docs/RECOVERY-MAIL-2026-10-27.md и docs/daily/2026-10-27.md.
+
 ## Точка продолжения — 26 октября 2026, по Москве
 
 Работа активна в прежнем чате; приложение/бот перед тарифами. После публикации cloud spec9 исполнитель connected, команды/API работают. Новый чат не нужен. Цель umexhmyeheonfsktcyqi занята:8 users/10 identities/8 profiles/2 files/активных уведомлений0 подтверждены read-only26.10. SQL/Storage restore не повторять. Вход владельца и полный RTO не подтверждены.
