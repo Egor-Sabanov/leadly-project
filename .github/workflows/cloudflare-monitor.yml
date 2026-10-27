@@ -1,9 +1,8 @@
-name: Deploy LEADLY owner monitor
+name: Publish LEADLY code without changing cron
 on:
   workflow_dispatch:
     inputs:
       setup_test:
-        description: Send one activation message to the configured owner
         type: boolean
         default: false
 permissions:
@@ -12,39 +11,20 @@ concurrency:
   group: leadly-cloudflare-monitor-deploy
   cancel-in-progress: false
 jobs:
-  deploy:
+  publish-code:
     runs-on: ubuntu-latest
-    timeout-minutes: 16
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Check shared monitor and deployment guards
-        run: |
-          node ops/monitor/monitor.test.cjs
-          node ops/monitor/backup.test.cjs
-          node ops/monitor/cloudflare/worker.test.cjs
-          node ops/monitor/cloudflare/deploy.test.cjs
-          node ops/monitor/cloudflare/observe.test.cjs
-      - name: Install the pinned deployment tool in a separate directory
+      - name: Install pinned Workers client
         run: npm install --prefix "$RUNNER_TEMP/leadly-monitor-tools" --no-save --ignore-scripts --package-lock=false wrangler@4.151.3
-      - name: Build without publishing
-        env:
-          WRANGLER_SEND_METRICS: 'false'
-        run: node "$RUNNER_TEMP/leadly-monitor-tools/node_modules/wrangler/bin/wrangler.js" deploy --dry-run --config ops/monitor/cloudflare/wrangler.jsonc --outdir "$RUNNER_TEMP/leadly-monitor-build"
-      - name: Check the actual Workers runtime with simulated upstreams
-        run: NODE_PATH="$RUNNER_TEMP/leadly-monitor-tools/node_modules" node ops/monitor/cloudflare/runtime-fixture.cjs "$RUNNER_TEMP/leadly-monitor-build/worker.js"
-      - name: Publish and enable only after setting the owner secrets
+      - name: Update code through versions while preserving the existing cron and secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SETUP_TEST: ${{ inputs.setup_test }}
-          MONITOR_OBSERVE: 'true'
         run: |
           export LEADLY_WRANGLER_BIN="$RUNNER_TEMP/leadly-monitor-tools/node_modules/wrangler/bin/wrangler.js"
-          export MONITOR_RELEASE_ID="release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          if [ "$SETUP_TEST" = 'true' ]; then export MONITOR_SETUP_TEST_ID="activation-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"; fi
-          node ops/monitor/cloudflare/deploy.cjs
+          node ops/monitor/cloudflare/publish-code-once.cjs
